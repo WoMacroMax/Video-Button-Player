@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,15 +48,36 @@ interface YouTubePlayer {
   setVolume: (volume: number) => void;
   getPlayerState: () => number;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  cueVideoById: (videoId: string) => void;
+  loadVideoById: (videoId: string) => void;
   destroy: () => void;
 }
 
-const VIDEO_ID = "M7lc1UVf-VE";
+const DEFAULT_VIDEO_ID = "M7lc1UVf-VE";
+
+function extractVideoId(url: string): string | null {
+  if (!url) return null;
+  
+  // Handle various YouTube URL formats
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  
+  return null;
+}
 
 export default function Home() {
   const [isHovered, setIsHovered] = useState(false);
   const [title, setTitle] = useState("Click the Video Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
+  const [videoUrl, setVideoUrl] = useState(`https://www.youtube.com/watch?v=${DEFAULT_VIDEO_ID}`);
+  const [videoId, setVideoId] = useState(DEFAULT_VIDEO_ID);
   const [volume, setVolume] = useState([50]);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -66,10 +87,15 @@ export default function Home() {
   const isLoopingRef = useRef(isLooping);
   const containerRef = useRef<HTMLDivElement>(null);
   const playerInitializedRef = useRef(false);
+  const currentVideoIdRef = useRef(videoId);
 
   useEffect(() => {
     isLoopingRef.current = isLooping;
   }, [isLooping]);
+
+  useEffect(() => {
+    currentVideoIdRef.current = videoId;
+  }, [videoId]);
 
   useEffect(() => {
     if (playerInitializedRef.current) return;
@@ -79,7 +105,7 @@ export default function Home() {
       playerInitializedRef.current = true;
       
       playerRef.current = new window.YT.Player("youtube-player", {
-        videoId: VIDEO_ID,
+        videoId: currentVideoIdRef.current,
         playerVars: {
           autoplay: 1,
           mute: 1,
@@ -137,6 +163,15 @@ export default function Home() {
 
   useEffect(() => {
     if (playerReady && playerRef.current) {
+      playerRef.current.loadVideoById(videoId);
+      if (isMuted) {
+        playerRef.current.mute();
+      }
+    }
+  }, [videoId, playerReady, isMuted]);
+
+  useEffect(() => {
+    if (playerReady && playerRef.current) {
       playerRef.current.setVolume(volume[0]);
     }
   }, [volume, playerReady]);
@@ -169,6 +204,14 @@ export default function Home() {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       window.open("https://womacromax.com", "_blank");
+    }
+  }, []);
+
+  const handleVideoUrlChange = useCallback((value: string) => {
+    setVideoUrl(value);
+    const extractedId = extractVideoId(value);
+    if (extractedId) {
+      setVideoId(extractedId);
     }
   }, []);
 
@@ -207,6 +250,23 @@ export default function Home() {
           </SheetHeader>
           
           <div className="flex flex-col gap-6 mt-6">
+            <div className="space-y-3">
+              <Label htmlFor="video-url-input" className="text-sm font-medium flex items-center gap-2">
+                <Link className="w-4 h-4" />
+                Video URL
+              </Label>
+              <Input
+                id="video-url-input"
+                value={videoUrl}
+                onChange={(e) => handleVideoUrlChange(e.target.value)}
+                placeholder="YouTube URL or Video ID"
+                data-testid="input-video-url"
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste a YouTube URL or video ID
+              </p>
+            </div>
+
             <div className="space-y-3">
               <Label htmlFor="title-input" className="text-sm font-medium">
                 Title
