@@ -651,12 +651,12 @@ export default function Home() {
             }}
           >
             <div 
-              className="absolute top-1/2 left-1/2 w-[150%] h-[150%]"
+              className="absolute top-1/2 left-1/2 w-[150%] h-[150%] pointer-events-none"
               style={{
                 transform: "translate(-50%, -50%)",
               }}
             >
-              <div id="youtube-player" className="w-full h-full" />
+              <div id="youtube-player" className="w-full h-full pointer-events-none" />
             </div>
 
             <div 
