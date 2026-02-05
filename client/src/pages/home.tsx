@@ -525,10 +525,43 @@ export default function Home() {
 
             {isLooping && (
               <div className="space-y-4 p-3 bg-muted rounded-md">
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Loop Range</Label>
+                    <span className="text-sm text-muted-foreground">
+                      {formatTime(loopStartSeconds)} - {loopEnd ? formatTime(loopEndSeconds) : formatTime(duration)}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[
+                      duration > 0 ? (loopStartSeconds / duration) * 100 : 0,
+                      duration > 0 ? ((loopEnd ? loopEndSeconds : duration) / duration) * 100 : 100
+                    ]}
+                    onValueChange={(values) => {
+                      if (duration > 0) {
+                        const startTime = (values[0] / 100) * duration;
+                        const endTime = (values[1] / 100) * duration;
+                        setLoopStart(formatTime(startTime));
+                        if (values[1] < 100) {
+                          setLoopEnd(formatTime(endTime));
+                        } else {
+                          setLoopEnd("");
+                        }
+                      }
+                    }}
+                    max={100}
+                    step={0.5}
+                    minStepsBetweenThumbs={1}
+                    className="w-full"
+                    data-testid="slider-loop-range"
+                  />
+                </div>
+
+                <div className="border-t border-border pt-4 space-y-3">
+                  <p className="text-xs text-muted-foreground font-medium">Manual Input</p>
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="loop-start" className="text-sm font-medium whitespace-nowrap">
-                      Loop Start
+                      Start
                     </Label>
                     <div className="flex items-center gap-2">
                       <Input
@@ -549,12 +582,10 @@ export default function Home() {
                       </Button>
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="loop-end" className="text-sm font-medium whitespace-nowrap">
-                      Loop End
+                      End
                     </Label>
                     <div className="flex items-center gap-2">
                       <Input
@@ -580,10 +611,10 @@ export default function Home() {
                       End time must be after start time
                     </p>
                   )}
+                  <p className="text-xs text-muted-foreground">
+                    Format: minutes:seconds (e.g., 1:30)
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Format: minutes:seconds (e.g., 1:30)
-                </p>
               </div>
             )}
           </div>
