@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +46,11 @@ interface YouTubePlayer {
   mute: () => void;
   unMute: () => void;
   setVolume: (volume: number) => void;
+  getVolume: () => number;
+  isMuted: () => boolean;
   getPlayerState: () => number;
+  getCurrentTime: () => number;
+  getDuration: () => number;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
   cueVideoById: (videoId: string) => void;
   loadVideoById: (videoId: string) => void;
@@ -58,7 +62,6 @@ const DEFAULT_VIDEO_ID = "M7lc1UVf-VE";
 function extractVideoId(url: string): string | null {
   if (!url) return null;
   
-  // Handle various YouTube URL formats
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
     /^([a-zA-Z0-9_-]{11})$/,
@@ -72,6 +75,25 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
+function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function parseTime(timeStr: string): number {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(":").map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 2) {
+    return Math.max(0, parts[0] * 60 + parts[1]);
+  } else if (parts.length === 1) {
+    return Math.max(0, parts[0]);
+  }
+  return 0;
+}
+
 export default function Home() {
   const [isHovered, setIsHovered] = useState(false);
   const [title, setTitle] = useState("Click the Video Button");
@@ -82,20 +104,54 @@ export default function Home() {
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isLooping, setIsLooping] = useState(true);
+  const [loopStart, setLoopStart] = useState("0:00");
+  const [loopEnd, setLoopEnd] = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [progress, setProgress] = useState([0]);
   const [playerReady, setPlayerReady] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const isLoopingRef = useRef(isLooping);
+  const loopStartRef = useRef(0);
+  const loopEndRef = useRef(0);
+  const durationRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const playerInitializedRef = useRef(false);
   const currentVideoIdRef = useRef(videoId);
+  const progressIntervalRef = useRef<number | null>(null);
+  const isSeeking = useRef(false);
+  const volumeRef = useRef(50);
 
   useEffect(() => {
     isLoopingRef.current = isLooping;
   }, [isLooping]);
 
   useEffect(() => {
+    const parsed = parseTime(loopStart);
+    loopStartRef.current = Math.min(parsed, durationRef.current > 0 ? durationRef.current : Infinity);
+  }, [loopStart]);
+
+  useEffect(() => {
+    if (loopEnd) {
+      const parsed = parseTime(loopEnd);
+      const clamped = durationRef.current > 0 ? Math.min(parsed, durationRef.current) : parsed;
+      loopEndRef.current = clamped > loopStartRef.current ? clamped : 0;
+    } else {
+      loopEndRef.current = 0;
+    }
+  }, [loopEnd]);
+
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
+
+  useEffect(() => {
     currentVideoIdRef.current = videoId;
   }, [videoId]);
+
+  useEffect(() => {
+    volumeRef.current = volume[0];
+  }, [volume]);
 
   useEffect(() => {
     if (playerInitializedRef.current) return;
@@ -119,13 +175,27 @@ export default function Home() {
         events: {
           onReady: (event) => {
             setPlayerReady(true);
-            event.target.setVolume(50);
+            event.target.setVolume(volumeRef.current);
             event.target.mute();
+            const dur = event.target.getDuration();
+            if (dur > 0) {
+              setDuration(dur);
+            }
           },
           onStateChange: (event) => {
+            if (event.data === 1) {
+              const dur = event.target.getDuration();
+              if (dur > 0) {
+                setDuration(dur);
+              }
+              setIsPlaying(true);
+            } else if (event.data === 2) {
+              setIsPlaying(false);
+            }
             if (event.data === 0) {
               if (isLoopingRef.current) {
-                event.target.seekTo(0, true);
+                const startTime = loopStartRef.current;
+                event.target.seekTo(startTime, true);
                 event.target.playVideo();
               }
             }
@@ -162,11 +232,53 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!playerReady || !playerRef.current) return;
+
+    const updateProgress = () => {
+      if (!playerRef.current || isSeeking.current) return;
+      
+      try {
+        const state = playerRef.current.getPlayerState();
+        if (state !== 1 && state !== 3) return;
+        
+        const time = playerRef.current.getCurrentTime();
+        const dur = playerRef.current.getDuration();
+        
+        if (dur > 0) {
+          setCurrentTime(time);
+          setDuration(dur);
+          setProgress([(time / dur) * 100]);
+
+          if (isLoopingRef.current && loopEndRef.current > loopStartRef.current && time >= loopEndRef.current) {
+            playerRef.current.seekTo(loopStartRef.current, true);
+          }
+        }
+      } catch {
+        // Player may not be ready
+      }
+    };
+
+    progressIntervalRef.current = window.setInterval(updateProgress, 200);
+
+    return () => {
+      if (progressIntervalRef.current) {
+        window.clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, [playerReady]);
+
+  useEffect(() => {
     if (playerReady && playerRef.current) {
+      setCurrentTime(0);
+      setProgress([0]);
+      setDuration(0);
       playerRef.current.loadVideoById(videoId);
+      playerRef.current.setVolume(volumeRef.current);
       if (isMuted) {
         playerRef.current.mute();
       }
+      setLoopEnd("");
+      setLoopStart("0:00");
     }
   }, [videoId, playerReady, isMuted]);
 
@@ -182,6 +294,7 @@ export default function Home() {
         playerRef.current.mute();
       } else {
         playerRef.current.unMute();
+        playerRef.current.setVolume(volumeRef.current);
       }
     }
   }, [isMuted, playerReady]);
@@ -227,6 +340,36 @@ export default function Home() {
     setIsLooping(checked);
   }, []);
 
+  const handleProgressChange = useCallback((value: number[]) => {
+    isSeeking.current = true;
+    setProgress(value);
+  }, []);
+
+  const handleProgressCommit = useCallback((value: number[]) => {
+    if (playerRef.current && durationRef.current > 0) {
+      const seekTime = (value[0] / 100) * durationRef.current;
+      playerRef.current.seekTo(seekTime, true);
+      setCurrentTime(seekTime);
+    }
+    isSeeking.current = false;
+  }, []);
+
+  const handleSetLoopStartToCurrent = useCallback(() => {
+    const clamped = Math.min(currentTime, duration > 0 ? duration : currentTime);
+    setLoopStart(formatTime(clamped));
+  }, [currentTime, duration]);
+
+  const handleSetLoopEndToCurrent = useCallback(() => {
+    const clamped = Math.min(currentTime, duration > 0 ? duration : currentTime);
+    if (clamped > parseTime(loopStart)) {
+      setLoopEnd(formatTime(clamped));
+    }
+  }, [currentTime, duration, loopStart]);
+
+  const loopStartSeconds = parseTime(loopStart);
+  const loopEndSeconds = loopEnd ? parseTime(loopEnd) : 0;
+  const isLoopValid = !loopEnd || (loopEndSeconds > loopStartSeconds && loopEndSeconds <= duration);
+
   return (
     <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-[#667eea] to-[#764ba2] relative">
       <Sheet>
@@ -241,7 +384,7 @@ export default function Home() {
             <Menu className="w-6 h-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-80">
+        <SheetContent side="left" className="w-80 overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Settings</SheetTitle>
             <SheetDescription>
@@ -262,9 +405,6 @@ export default function Home() {
                 placeholder="YouTube URL or Video ID"
                 data-testid="input-video-url"
               />
-              <p className="text-xs text-muted-foreground">
-                Paste a YouTube URL or video ID
-              </p>
             </div>
 
             <div className="space-y-3">
@@ -290,6 +430,27 @@ export default function Home() {
                 onChange={(e) => setButtonLabel(e.target.value)}
                 placeholder="Enter button label"
                 data-testid="input-button-label"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Progress
+                </Label>
+                <span className="text-sm text-muted-foreground">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
+              </div>
+              <Slider
+                value={progress}
+                onValueChange={handleProgressChange}
+                onValueCommit={handleProgressCommit}
+                max={100}
+                step={0.1}
+                className="w-full"
+                data-testid="slider-progress"
               />
             </div>
 
@@ -361,6 +522,70 @@ export default function Home() {
                 data-testid="switch-loop"
               />
             </div>
+
+            {isLooping && (
+              <div className="space-y-4 p-3 bg-muted rounded-md">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="loop-start" className="text-sm font-medium whitespace-nowrap">
+                      Loop Start
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="loop-start"
+                        value={loopStart}
+                        onChange={(e) => setLoopStart(e.target.value)}
+                        placeholder="0:00"
+                        className="w-20 text-center"
+                        data-testid="input-loop-start"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSetLoopStartToCurrent}
+                        data-testid="button-set-loop-start"
+                      >
+                        Set
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="loop-end" className="text-sm font-medium whitespace-nowrap">
+                      Loop End
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="loop-end"
+                        value={loopEnd}
+                        onChange={(e) => setLoopEnd(e.target.value)}
+                        placeholder="End"
+                        className={`w-20 text-center ${!isLoopValid ? "border-destructive" : ""}`}
+                        data-testid="input-loop-end"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSetLoopEndToCurrent}
+                        data-testid="button-set-loop-end"
+                      >
+                        Set
+                      </Button>
+                    </div>
+                  </div>
+                  {!isLoopValid && (
+                    <p className="text-xs text-destructive">
+                      End time must be after start time
+                    </p>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Format: minutes:seconds (e.g., 1:30)
+                </p>
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>
