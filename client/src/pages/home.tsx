@@ -384,15 +384,15 @@ export default function Home() {
             <Menu className="w-6 h-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-80 overflow-y-auto">
-          <SheetHeader>
+        <SheetContent side="left" className="w-80 flex flex-col h-full overflow-hidden">
+          <SheetHeader className="flex-shrink-0">
             <SheetTitle>Settings</SheetTitle>
             <SheetDescription>
               Customize video playback and button appearance
             </SheetDescription>
           </SheetHeader>
           
-          <div className="flex flex-col gap-6 mt-6">
+          <div className="flex flex-col gap-6 mt-6 flex-1 overflow-y-auto pb-6">
             <div className="space-y-3">
               <Label htmlFor="video-url-input" className="text-sm font-medium flex items-center gap-2">
                 <Link className="w-4 h-4" />
