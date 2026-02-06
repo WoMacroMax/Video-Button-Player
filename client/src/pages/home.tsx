@@ -60,7 +60,7 @@ interface YouTubePlayer {
   destroy: () => void;
 }
 
-const DEFAULT_VIDEO_ID = "M7lc1UVf-VE";
+const DEFAULT_VIDEO_ID = "Gai7-HR2YZk";
 
 const YOUTUBE_URLS_KEY = "view-youtube-urls";
 const MP4_URLS_KEY = "view-mp4-urls";
@@ -181,7 +181,7 @@ export default function Home() {
   const [isHovered, setIsHovered] = useState(false);
   const [title, setTitle] = useState("Click the Video Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
-  const [buttonUrl, setButtonUrl] = useState("https://womacromax.com");
+  const [buttonUrl, setButtonUrl] = useState("https://rodbiz.digiucard.com/portfolio");
   const [youtubeHistory, setYoutubeHistory] = useState<string[]>(() => loadUrlHistory(YOUTUBE_URLS_KEY));
   const [mp4History, setMp4History] = useState<string[]>(() => loadUrlHistory(MP4_URLS_KEY));
   const [videoUrl, setVideoUrl] = useState(() => {
@@ -372,16 +372,17 @@ export default function Home() {
       if (isSeeking.current) return;
       if (sourceModeRef.current === "youtube" && playerRef.current) {
         try {
+          if (typeof playerRef.current.getPlayerState !== "function") return;
           const state = playerRef.current.getPlayerState();
           if (state !== 1 && state !== 3) return;
-          const time = playerRef.current.getCurrentTime();
-          const dur = playerRef.current.getDuration();
+          const time = typeof playerRef.current.getCurrentTime === "function" ? playerRef.current.getCurrentTime() : 0;
+          const dur = typeof playerRef.current.getDuration === "function" ? playerRef.current.getDuration() : 0;
           if (dur > 0) {
             setCurrentTime(time);
             setDuration(dur);
             setProgress([(time / dur) * 100]);
             if (isLoopingRef.current && loopEndRef.current > loopStartRef.current && time >= loopEndRef.current) {
-              playerRef.current.seekTo(loopStartRef.current, true);
+              if (typeof playerRef.current.seekTo === "function") playerRef.current.seekTo(loopStartRef.current, true);
             }
           }
         } catch { /* Player may not be ready */ }
@@ -404,13 +405,13 @@ export default function Home() {
 
   useEffect(() => {
     if (sourceMode !== "youtube") return;
-    if (playerReady && playerRef.current) {
+    if (playerReady && playerRef.current && typeof playerRef.current.loadVideoById === "function") {
       setCurrentTime(0);
       setProgress([0]);
       setDuration(0);
-      playerRef.current.loadVideoById(videoId);
-      playerRef.current.setVolume(volumeRef.current);
-      if (isMuted) playerRef.current.mute();
+      if (typeof playerRef.current.loadVideoById === "function") playerRef.current.loadVideoById(videoId);
+      if (typeof playerRef.current.setVolume === "function") playerRef.current.setVolume(volumeRef.current);
+      if (isMuted && typeof playerRef.current.mute === "function") playerRef.current.mute();
       setLoopEnd("");
       setLoopStart("0:00");
     }
@@ -418,7 +419,7 @@ export default function Home() {
 
   useEffect(() => {
     if (sourceMode === "youtube" && playerReady && playerRef.current) {
-      playerRef.current.setVolume(volume[0]);
+      if (typeof playerRef.current.setVolume === "function") playerRef.current.setVolume(volume[0]);
     } else if (sourceMode === "mp4" && mp4VideoRef.current) {
       mp4VideoRef.current.volume = volume[0] / 100;
     }
@@ -426,8 +427,8 @@ export default function Home() {
 
   useEffect(() => {
     if (sourceMode === "youtube" && playerReady && playerRef.current) {
-      if (isMuted) { playerRef.current.mute(); }
-      else { playerRef.current.unMute(); playerRef.current.setVolume(volumeRef.current); }
+      if (isMuted) { if (typeof playerRef.current.mute === "function") playerRef.current.mute(); }
+      else { if (typeof playerRef.current.unMute === "function") playerRef.current.unMute(); if (typeof playerRef.current.setVolume === "function") playerRef.current.setVolume(volumeRef.current); }
     } else if (sourceMode === "mp4" && mp4VideoRef.current) {
       mp4VideoRef.current.muted = isMuted;
     }
@@ -435,8 +436,8 @@ export default function Home() {
 
   useEffect(() => {
     if (sourceMode === "youtube" && playerReady && playerRef.current) {
-      if (isPlaying) playerRef.current.playVideo();
-      else playerRef.current.pauseVideo();
+      if (isPlaying) { if (typeof playerRef.current.playVideo === "function") playerRef.current.playVideo(); }
+      else { if (typeof playerRef.current.pauseVideo === "function") playerRef.current.pauseVideo(); }
     } else if (sourceMode === "mp4" && mp4VideoRef.current) {
       if (isPlaying) mp4VideoRef.current.play().catch(() => {});
       else mp4VideoRef.current.pause();
@@ -450,7 +451,7 @@ export default function Home() {
     setPlayerReady(false);
     setLoopEnd("");
     setLoopStart("0:00");
-    if (sourceMode === "youtube" && playerRef.current) {
+    if (sourceMode === "youtube" && playerRef.current && typeof playerRef.current.loadVideoById === "function") {
       playerRef.current.loadVideoById(videoId);
       setPlayerReady(true);
     }
@@ -505,7 +506,23 @@ export default function Home() {
   const handleSourceModeToggle = useCallback((checked: boolean) => {
     setSourceMode(checked ? "mp4" : "youtube");
   }, []);
-  const handleMuteToggle = useCallback((checked: boolean) => { setIsMuted(checked); }, []);
+  const triggerUnmutePlay = useCallback(() => {
+    if (sourceMode === "mp4" && mp4VideoRef.current) {
+      mp4VideoRef.current.muted = false;
+      mp4VideoRef.current.play().catch(Boolean);
+    }
+    if (sourceMode === "youtube" && playerRef.current) {
+      if (typeof playerRef.current.unMute === "function") playerRef.current.unMute();
+      if (typeof playerRef.current.playVideo === "function") playerRef.current.playVideo();
+    }
+  }, [sourceMode]);
+  const handleMuteToggle = useCallback((checked: boolean) => {
+    setIsMuted(checked);
+    if (!checked && !isPlaying) {
+      setIsPlaying(true);
+      triggerUnmutePlay();
+    }
+  }, [isPlaying, triggerUnmutePlay]);
   const handlePlayToggle = useCallback(() => { setIsPlaying((prev) => !prev); }, []);
   const handleLoopToggle = useCallback((checked: boolean) => { setIsLooping(checked); }, []);
   const handleProgressChange = useCallback((value: number[]) => { isSeeking.current = true; setProgress(value); }, []);
@@ -513,7 +530,7 @@ export default function Home() {
     if (durationRef.current > 0) {
       const seekTime = (value[0] / 100) * durationRef.current;
       if (sourceModeRef.current === "youtube" && playerRef.current) {
-        playerRef.current.seekTo(seekTime, true);
+        if (typeof playerRef.current.seekTo === "function") playerRef.current.seekTo(seekTime, true);
       } else if (sourceModeRef.current === "mp4" && mp4VideoRef.current) {
         mp4VideoRef.current.currentTime = seekTime;
       }
@@ -850,7 +867,7 @@ export default function Home() {
       <Button
         size="icon"
         variant="ghost"
-        className="absolute top-4 left-16 text-white"
+        className="absolute top-14 left-4 bg-red-600 text-white hover:bg-red-700"
         aria-label="Open Stem Separator"
         onClick={() => setStemModalOpen(true)}
         data-testid="button-stem"
@@ -942,16 +959,17 @@ export default function Home() {
               className="absolute z-20 pointer-events-auto"
               style={{ bottom: "12%", right: "12%" }}
             >
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={(e) => { e.stopPropagation(); setIsMuted((prev) => !prev); }}
-                className="rounded-full bg-black/50 text-white/80"
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } } }}
+                className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
                 aria-label={isMuted ? "Unmute video" : "Mute video"}
                 data-testid="button-mute-overlay"
               >
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </Button>
+              </div>
             </div>
 
             <div
@@ -985,11 +1003,11 @@ export default function Home() {
           duration={duration}
           volume={volume}
           onPlayToggle={handlePlayToggle}
-          onMuteToggle={() => setIsMuted((prev) => !prev)}
+          onMuteToggle={() => { const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } }}
           onVolumeChange={setVolume}
           onSeek={(time) => {
             if (sourceMode === "youtube" && playerRef.current) {
-              playerRef.current.seekTo(time, true);
+              if (typeof playerRef.current.seekTo === "function") playerRef.current.seekTo(time, true);
             } else if (sourceMode === "mp4" && mp4VideoRef.current) {
               mp4VideoRef.current.currentTime = time;
             }

@@ -184,7 +184,7 @@ export default function PlayPage() {
   const [isHovered, setIsHovered] = useState(false);
   const [title, setTitle] = useState("Click the Audio Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
-  const [buttonUrl, setButtonUrl] = useState("https://womacromax.com");
+  const [buttonUrl, setButtonUrl] = useState("https://rodbiz.digiucard.com/portfolio");
   const [audioHistory, setAudioHistory] = useState<string[]>(() => loadUrlHistory(AUDIO_URLS_KEY));
   const [audioUrl, setAudioUrl] = useState(() => {
     const history = loadUrlHistory(AUDIO_URLS_KEY);
@@ -356,7 +356,19 @@ export default function PlayPage() {
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (buttonUrl) window.open(buttonUrl, "_blank"); }
   }, [buttonUrl]);
-  const handleMuteToggle = useCallback((checked: boolean) => { setIsMuted(checked); }, []);
+  const triggerUnmutePlay = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = false;
+      audioRef.current.play().catch(Boolean);
+    }
+  }, []);
+  const handleMuteToggle = useCallback((checked: boolean) => {
+    setIsMuted(checked);
+    if (!checked && !isPlaying) {
+      setIsPlaying(true);
+      triggerUnmutePlay();
+    }
+  }, [isPlaying, triggerUnmutePlay]);
   const handlePlayToggle = useCallback(() => { setIsPlaying((prev) => !prev); }, []);
   const handleLoopToggle = useCallback((checked: boolean) => { setIsLooping(checked); }, []);
   const handleProgressChange = useCallback((value: number[]) => { isSeeking.current = true; setProgress(value); }, []);
@@ -637,7 +649,7 @@ export default function PlayPage() {
       <Button
         size="icon"
         variant="ghost"
-        className="absolute top-4 left-16 text-white"
+        className="absolute top-14 left-4 bg-red-600 text-white hover:bg-red-700"
         aria-label="Open Stem Separator"
         onClick={() => setStemModalOpen(true)}
         data-testid="button-stem"
@@ -717,16 +729,17 @@ export default function PlayPage() {
               className="absolute z-20 pointer-events-auto"
               style={{ bottom: "12%", right: "12%" }}
             >
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={(e) => { e.stopPropagation(); setIsMuted((prev) => !prev); }}
-                className="rounded-full bg-black/50 text-white/80"
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } } }}
+                className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
                 aria-label={isMuted ? "Unmute audio" : "Mute audio"}
                 data-testid="button-mute-overlay"
               >
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </Button>
+              </div>
             </div>
 
             <div
@@ -760,7 +773,7 @@ export default function PlayPage() {
           duration={duration}
           volume={volume}
           onPlayToggle={handlePlayToggle}
-          onMuteToggle={() => setIsMuted((prev) => !prev)}
+          onMuteToggle={() => { const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } }}
           onVolumeChange={setVolume}
           onSeek={(time) => {
             if (audioRef.current) {
