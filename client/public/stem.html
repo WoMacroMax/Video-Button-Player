@@ -1164,6 +1164,26 @@
             error.classList.remove('active');
         }
 
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'load-audio-url') {
+                const url = event.data.url;
+                if (url) {
+                    urlInput.value = url;
+                    uploadZone.querySelector('.upload-text').textContent = 'Streaming from player...';
+                    loadFromUrl();
+                }
+            }
+            if (event.data && event.data.type === 'load-audio-blob') {
+                const buffer = event.data.buffer;
+                const filename = event.data.filename || 'captured-audio.webm';
+                const mimeType = event.data.mimeType || 'audio/webm';
+                const blob = new Blob([buffer], { type: mimeType });
+                const file = new File([blob], filename, { type: mimeType });
+                handleFile(file);
+                uploadZone.querySelector('.upload-text').textContent = 'Streamed: ' + filename;
+            }
+        });
+
         // Note: MCP Integration
         /*
          * To integrate with the actual Stem MCP Server, you would:

@@ -157,6 +157,7 @@ export default function Home() {
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
   const [stemModalOpen, setStemModalOpen] = useState(false);
+  const stemIframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const mp4VideoRef = useRef<HTMLVideoElement | null>(null);
   const isLoopingRef = useRef(isLooping);
@@ -430,6 +431,18 @@ export default function Home() {
     const clamped = Math.min(currentTime, duration > 0 ? duration : currentTime);
     if (clamped > parseTime(loopStart)) setLoopEnd(formatTime(clamped));
   }, [currentTime, duration, loopStart]);
+
+  const sendAudioToStem = useCallback(() => {
+    const iframe = stemIframeRef.current;
+    if (!iframe?.contentWindow) return;
+    if (sourceMode === "mp4" && mp4Url) {
+      iframe.contentWindow.postMessage({ type: "load-audio-url", url: mp4Url }, "*");
+    }
+  }, [sourceMode, mp4Url]);
+
+  useEffect(() => {
+    if (stemModalOpen) sendAudioToStem();
+  }, [stemModalOpen, sendAudioToStem]);
 
   const loopStartSeconds = parseTime(loopStart);
   const loopEndSeconds = loopEnd ? parseTime(loopEnd) : 0;
@@ -708,10 +721,12 @@ export default function Home() {
               <X className="w-4 h-4 text-white" />
             </button>
             <iframe
+              ref={stemIframeRef}
               src="/stem.html"
               className="w-full h-full border-0"
               title="StemSplit - AI Audio Separation"
               allow="autoplay; microphone"
+              onLoad={sendAudioToStem}
               data-testid="stem-modal-iframe"
             />
           </div>
