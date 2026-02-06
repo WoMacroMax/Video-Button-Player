@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette, ExternalLink } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,6 +151,7 @@ export default function Home() {
   const [scale, setScale] = useState([100]);
   const [bgColor, setBgColor] = useState("#667eea");
   const [borderColor, setBorderColor] = useState("#ffffff33");
+  const [containerVisible, setContainerVisible] = useState(true);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const isLoopingRef = useRef(isLooping);
   const loopStartRef = useRef(0);
@@ -431,6 +432,14 @@ export default function Home() {
               <ColorPickerField label="Border Color" color={borderColor} onChange={setBorderColor} testId="color-border" />
             </div>
 
+            <div className="flex items-center justify-between">
+              <Label htmlFor="visibility-toggle" className="text-sm font-medium flex items-center gap-2">
+                {containerVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                Container Visible
+              </Label>
+              <Switch id="visibility-toggle" checked={containerVisible} onCheckedChange={setContainerVisible} data-testid="switch-visibility" />
+            </div>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium flex items-center gap-2">
@@ -531,7 +540,7 @@ export default function Home() {
         </SheetContent>
       </Sheet>
 
-      <div className="text-center">
+      <div className="text-center" style={{ display: containerVisible ? "block" : "none" }}>
         <h1
           className="text-white text-2xl md:text-3xl font-semibold mb-6 md:mb-8"
           style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
@@ -605,6 +614,168 @@ export default function Home() {
             </div>
           </div>
         </button>
+      </div>
+
+      {!containerVisible && (
+        <HiddenModeControls
+          isPlaying={isPlaying}
+          isMuted={isMuted}
+          currentTime={currentTime}
+          loopStartSeconds={loopStartSeconds}
+          loopEndSeconds={loopEndSeconds}
+          duration={duration}
+          volume={volume}
+          onPlayToggle={handlePlayToggle}
+          onMuteToggle={() => setIsMuted((prev) => !prev)}
+          onVolumeChange={setVolume}
+          onSeek={(time) => {
+            if (playerRef.current) {
+              playerRef.current.seekTo(time, true);
+              setCurrentTime(time);
+            }
+          }}
+          title={title}
+        />
+      )}
+    </div>
+  );
+}
+
+function HiddenModeControls({
+  isPlaying,
+  isMuted,
+  currentTime,
+  loopStartSeconds,
+  loopEndSeconds,
+  duration,
+  volume,
+  onPlayToggle,
+  onMuteToggle,
+  onVolumeChange,
+  onSeek,
+  title,
+}: {
+  isPlaying: boolean;
+  isMuted: boolean;
+  currentTime: number;
+  loopStartSeconds: number;
+  loopEndSeconds: number;
+  duration: number;
+  volume: number[];
+  onPlayToggle: () => void;
+  onMuteToggle: () => void;
+  onVolumeChange: (v: number[]) => void;
+  onSeek: (time: number) => void;
+  title: string;
+}) {
+  const rangeStart = loopStartSeconds;
+  const rangeEnd = loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration;
+  const rangeSpan = rangeEnd - rangeStart;
+
+  const scrubPercent = rangeSpan > 0 ? Math.max(0, Math.min(100, ((currentTime - rangeStart) / rangeSpan) * 100)) : 0;
+
+  const handleScrubChange = useCallback((value: number[]) => {
+    if (rangeSpan > 0) {
+      const seekTime = rangeStart + (value[0] / 100) * rangeSpan;
+      onSeek(seekTime);
+    }
+  }, [rangeStart, rangeSpan, onSeek]);
+
+  const handleSkipBack = useCallback(() => {
+    const newTime = Math.max(rangeStart, currentTime - 5);
+    onSeek(newTime);
+  }, [rangeStart, currentTime, onSeek]);
+
+  const handleSkipForward = useCallback(() => {
+    const newTime = Math.min(rangeEnd, currentTime + 5);
+    onSeek(newTime);
+  }, [rangeEnd, currentTime, onSeek]);
+
+  return (
+    <div className="flex flex-col items-center gap-6 w-full max-w-md px-4" data-testid="hidden-mode-controls">
+      <h1
+        className="text-white text-2xl md:text-3xl font-semibold text-center"
+        style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
+        data-testid="text-title"
+      >
+        {title}
+      </h1>
+
+      <div className="w-full bg-white/10 backdrop-blur-sm rounded-md p-5 space-y-5">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-white/70 text-xs font-medium">{formatTime(currentTime)}</span>
+            <span className="text-white/70 text-xs font-medium">{formatTime(rangeEnd)}</span>
+          </div>
+          <Slider
+            value={[scrubPercent]}
+            onValueChange={handleScrubChange}
+            max={100}
+            step={0.1}
+            className="w-full"
+            data-testid="slider-hidden-scrub"
+          />
+          <div className="text-center">
+            <span className="text-white/50 text-xs">
+              Loop: {formatTime(rangeStart)} - {formatTime(rangeEnd)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleSkipBack}
+            className="text-white/80"
+            aria-label="Skip back 5 seconds"
+            data-testid="button-hidden-skip-back"
+          >
+            <SkipBack className="w-5 h-5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onPlayToggle}
+            className="text-white bg-white/20"
+            aria-label={isPlaying ? "Pause" : "Play"}
+            data-testid="button-hidden-play"
+          >
+            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleSkipForward}
+            className="text-white/80"
+            aria-label="Skip forward 5 seconds"
+            data-testid="button-hidden-skip-forward"
+          >
+            <SkipForward className="w-5 h-5" />
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onMuteToggle}
+            className="text-white/80 flex-shrink-0"
+            aria-label={isMuted ? "Unmute" : "Mute"}
+            data-testid="button-hidden-mute"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </Button>
+          <Slider
+            value={volume}
+            onValueChange={onVolumeChange}
+            max={100}
+            step={1}
+            className="w-full"
+            data-testid="slider-hidden-volume"
+          />
+          <span className="text-white/60 text-xs w-8 text-right flex-shrink-0">{volume[0]}%</span>
+        </div>
       </div>
     </div>
   );
