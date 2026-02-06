@@ -659,6 +659,31 @@ export default function Home() {
               <div id="youtube-player" className="w-full h-full pointer-events-none" />
             </div>
 
+            <div
+              className="absolute z-20 pointer-events-auto"
+              style={{
+                bottom: "15%",
+                right: "15%",
+              }}
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMuted((prev) => !prev);
+                }}
+                className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-black/50 flex items-center justify-center text-white/80 hover:bg-black/70 hover:text-white transition-colors"
+                aria-label={isMuted ? "Unmute video" : "Mute video"}
+                data-testid="button-mute-overlay"
+              >
+                {isMuted ? (
+                  <VolumeX className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                )}
+              </button>
+            </div>
+
             <div 
               className="absolute inset-0 z-10 flex items-center justify-center transition-all duration-300 pointer-events-none"
               style={{
