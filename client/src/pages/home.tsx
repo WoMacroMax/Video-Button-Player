@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette } from "lucide-react";
+import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,19 +60,25 @@ interface YouTubePlayer {
 
 const DEFAULT_VIDEO_ID = "M7lc1UVf-VE";
 
+type ContainerShape = "circle" | "oval" | "square" | "rectangle";
+
+const shapeStyles: Record<ContainerShape, { borderRadius: string; aspect: string; widthClass: string; heightClass: string }> = {
+  circle: { borderRadius: "9999px", aspect: "1/1", widthClass: "w-[180px] sm:w-[220px] md:w-[280px]", heightClass: "h-[180px] sm:h-[220px] md:h-[280px]" },
+  oval: { borderRadius: "9999px", aspect: "3/2", widthClass: "w-[270px] sm:w-[330px] md:w-[420px]", heightClass: "h-[180px] sm:h-[220px] md:h-[280px]" },
+  square: { borderRadius: "16px", aspect: "1/1", widthClass: "w-[180px] sm:w-[220px] md:w-[280px]", heightClass: "h-[180px] sm:h-[220px] md:h-[280px]" },
+  rectangle: { borderRadius: "16px", aspect: "16/9", widthClass: "w-[320px] sm:w-[390px] md:w-[500px]", heightClass: "h-[180px] sm:h-[220px] md:h-[280px]" },
+};
+
 function extractVideoId(url: string): string | null {
   if (!url) return null;
-  
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
     /^([a-zA-Z0-9_-]{11})$/,
   ];
-  
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match) return match[1];
   }
-  
   return null;
 }
 
@@ -86,12 +93,41 @@ function parseTime(timeStr: string): number {
   if (!timeStr) return 0;
   const parts = timeStr.split(":").map(Number);
   if (parts.some(isNaN)) return 0;
-  if (parts.length === 2) {
-    return Math.max(0, parts[0] * 60 + parts[1]);
-  } else if (parts.length === 1) {
-    return Math.max(0, parts[0]);
-  }
+  if (parts.length === 2) return Math.max(0, parts[0] * 60 + parts[1]);
+  if (parts.length === 1) return Math.max(0, parts[0]);
   return 0;
+}
+
+function ColorPickerField({ label, color, onChange, testId }: { label: string; color: string; onChange: (c: string) => void; testId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-sm font-medium">{label}</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            value={color}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-24 text-center font-mono text-xs"
+            data-testid={`${testId}-input`}
+          />
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="w-9 h-9 rounded-md border border-border flex-shrink-0"
+            style={{ backgroundColor: color }}
+            aria-label={`Pick ${label.toLowerCase()}`}
+            data-testid={`${testId}-swatch`}
+          />
+        </div>
+      </div>
+      {open && (
+        <div className="pt-1">
+          <HexColorPicker color={color} onChange={onChange} style={{ width: "100%" }} />
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Home() {
@@ -110,6 +146,10 @@ export default function Home() {
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState([0]);
   const [playerReady, setPlayerReady] = useState(false);
+  const [shape, setShape] = useState<ContainerShape>("circle");
+  const [scale, setScale] = useState([100]);
+  const [bgColor, setBgColor] = useState("#667eea");
+  const [borderColor, setBorderColor] = useState("#ffffff33");
   const playerRef = useRef<YouTubePlayer | null>(null);
   const isLoopingRef = useRef(isLooping);
   const loopStartRef = useRef(0);
@@ -122,15 +162,11 @@ export default function Home() {
   const isSeeking = useRef(false);
   const volumeRef = useRef(50);
 
-  useEffect(() => {
-    isLoopingRef.current = isLooping;
-  }, [isLooping]);
-
+  useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
   useEffect(() => {
     const parsed = parseTime(loopStart);
     loopStartRef.current = Math.min(parsed, durationRef.current > 0 ? durationRef.current : Infinity);
   }, [loopStart]);
-
   useEffect(() => {
     if (loopEnd) {
       const parsed = parseTime(loopEnd);
@@ -140,70 +176,42 @@ export default function Home() {
       loopEndRef.current = 0;
     }
   }, [loopEnd]);
-
-  useEffect(() => {
-    durationRef.current = duration;
-  }, [duration]);
-
-  useEffect(() => {
-    currentVideoIdRef.current = videoId;
-  }, [videoId]);
-
-  useEffect(() => {
-    volumeRef.current = volume[0];
-  }, [volume]);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
+  useEffect(() => { currentVideoIdRef.current = videoId; }, [videoId]);
+  useEffect(() => { volumeRef.current = volume[0]; }, [volume]);
 
   useEffect(() => {
     if (playerInitializedRef.current) return;
-
     const initPlayer = () => {
       if (playerRef.current || playerInitializedRef.current) return;
       playerInitializedRef.current = true;
-      
       playerRef.current = new window.YT.Player("youtube-player", {
         videoId: currentVideoIdRef.current,
-        playerVars: {
-          autoplay: 1,
-          mute: 1,
-          controls: 0,
-          showinfo: 0,
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          loop: 0,
-        },
+        playerVars: { autoplay: 1, mute: 1, controls: 0, showinfo: 0, rel: 0, modestbranding: 1, playsinline: 1, loop: 0 },
         events: {
           onReady: (event) => {
             setPlayerReady(true);
             event.target.setVolume(volumeRef.current);
             event.target.mute();
             const dur = event.target.getDuration();
-            if (dur > 0) {
-              setDuration(dur);
-            }
+            if (dur > 0) setDuration(dur);
           },
           onStateChange: (event) => {
             if (event.data === 1) {
               const dur = event.target.getDuration();
-              if (dur > 0) {
-                setDuration(dur);
-              }
+              if (dur > 0) setDuration(dur);
               setIsPlaying(true);
             } else if (event.data === 2) {
               setIsPlaying(false);
             }
-            if (event.data === 0) {
-              if (isLoopingRef.current) {
-                const startTime = loopStartRef.current;
-                event.target.seekTo(startTime, true);
-                event.target.playVideo();
-              }
+            if (event.data === 0 && isLoopingRef.current) {
+              event.target.seekTo(loopStartRef.current, true);
+              event.target.playVideo();
             }
           },
         },
       });
     };
-
     if (window.YT && window.YT.Player) {
       initPlayer();
     } else {
@@ -214,14 +222,12 @@ export default function Home() {
         const firstScriptTag = document.getElementsByTagName("script")[0];
         firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
       }
-      
       const existingCallback = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
         if (existingCallback) existingCallback();
         initPlayer();
       };
     }
-
     return () => {
       if (playerRef.current) {
         playerRef.current.destroy();
@@ -233,38 +239,25 @@ export default function Home() {
 
   useEffect(() => {
     if (!playerReady || !playerRef.current) return;
-
     const updateProgress = () => {
       if (!playerRef.current || isSeeking.current) return;
-      
       try {
         const state = playerRef.current.getPlayerState();
         if (state !== 1 && state !== 3) return;
-        
         const time = playerRef.current.getCurrentTime();
         const dur = playerRef.current.getDuration();
-        
         if (dur > 0) {
           setCurrentTime(time);
           setDuration(dur);
           setProgress([(time / dur) * 100]);
-
           if (isLoopingRef.current && loopEndRef.current > loopStartRef.current && time >= loopEndRef.current) {
             playerRef.current.seekTo(loopStartRef.current, true);
           }
         }
-      } catch {
-        // Player may not be ready
-      }
+      } catch { /* Player may not be ready */ }
     };
-
     progressIntervalRef.current = window.setInterval(updateProgress, 200);
-
-    return () => {
-      if (progressIntervalRef.current) {
-        window.clearInterval(progressIntervalRef.current);
-      }
-    };
+    return () => { if (progressIntervalRef.current) window.clearInterval(progressIntervalRef.current); };
   }, [playerReady]);
 
   useEffect(() => {
@@ -274,77 +267,43 @@ export default function Home() {
       setDuration(0);
       playerRef.current.loadVideoById(videoId);
       playerRef.current.setVolume(volumeRef.current);
-      if (isMuted) {
-        playerRef.current.mute();
-      }
+      if (isMuted) playerRef.current.mute();
       setLoopEnd("");
       setLoopStart("0:00");
     }
   }, [videoId, playerReady, isMuted]);
 
   useEffect(() => {
-    if (playerReady && playerRef.current) {
-      playerRef.current.setVolume(volume[0]);
-    }
+    if (playerReady && playerRef.current) playerRef.current.setVolume(volume[0]);
   }, [volume, playerReady]);
 
   useEffect(() => {
     if (playerReady && playerRef.current) {
-      if (isMuted) {
-        playerRef.current.mute();
-      } else {
-        playerRef.current.unMute();
-        playerRef.current.setVolume(volumeRef.current);
-      }
+      if (isMuted) { playerRef.current.mute(); }
+      else { playerRef.current.unMute(); playerRef.current.setVolume(volumeRef.current); }
     }
   }, [isMuted, playerReady]);
 
   useEffect(() => {
     if (playerReady && playerRef.current) {
-      if (isPlaying) {
-        playerRef.current.playVideo();
-      } else {
-        playerRef.current.pauseVideo();
-      }
+      if (isPlaying) playerRef.current.playVideo();
+      else playerRef.current.pauseVideo();
     }
   }, [isPlaying, playerReady]);
 
-  const handleClick = useCallback(() => {
-    window.open("https://womacromax.com", "_blank");
-  }, []);
-
+  const handleClick = useCallback(() => { window.open("https://womacromax.com", "_blank"); }, []);
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      window.open("https://womacromax.com", "_blank");
-    }
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); window.open("https://womacromax.com", "_blank"); }
   }, []);
-
   const handleVideoUrlChange = useCallback((value: string) => {
     setVideoUrl(value);
     const extractedId = extractVideoId(value);
-    if (extractedId) {
-      setVideoId(extractedId);
-    }
+    if (extractedId) setVideoId(extractedId);
   }, []);
-
-  const handleMuteToggle = useCallback((checked: boolean) => {
-    setIsMuted(checked);
-  }, []);
-
-  const handlePlayToggle = useCallback(() => {
-    setIsPlaying((prev) => !prev);
-  }, []);
-
-  const handleLoopToggle = useCallback((checked: boolean) => {
-    setIsLooping(checked);
-  }, []);
-
-  const handleProgressChange = useCallback((value: number[]) => {
-    isSeeking.current = true;
-    setProgress(value);
-  }, []);
-
+  const handleMuteToggle = useCallback((checked: boolean) => { setIsMuted(checked); }, []);
+  const handlePlayToggle = useCallback(() => { setIsPlaying((prev) => !prev); }, []);
+  const handleLoopToggle = useCallback((checked: boolean) => { setIsLooping(checked); }, []);
+  const handleProgressChange = useCallback((value: number[]) => { isSeeking.current = true; setProgress(value); }, []);
   const handleProgressCommit = useCallback((value: number[]) => {
     if (playerRef.current && durationRef.current > 0) {
       const seekTime = (value[0] / 100) * durationRef.current;
@@ -353,25 +312,24 @@ export default function Home() {
     }
     isSeeking.current = false;
   }, []);
-
   const handleSetLoopStartToCurrent = useCallback(() => {
     const clamped = Math.min(currentTime, duration > 0 ? duration : currentTime);
     setLoopStart(formatTime(clamped));
   }, [currentTime, duration]);
-
   const handleSetLoopEndToCurrent = useCallback(() => {
     const clamped = Math.min(currentTime, duration > 0 ? duration : currentTime);
-    if (clamped > parseTime(loopStart)) {
-      setLoopEnd(formatTime(clamped));
-    }
+    if (clamped > parseTime(loopStart)) setLoopEnd(formatTime(clamped));
   }, [currentTime, duration, loopStart]);
 
   const loopStartSeconds = parseTime(loopStart);
   const loopEndSeconds = loopEnd ? parseTime(loopEnd) : 0;
   const isLoopValid = !loopEnd || (loopEndSeconds > loopStartSeconds && loopEndSeconds <= duration);
 
+  const currentShape = shapeStyles[shape];
+  const scaleFactor = scale[0] / 100;
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-[#667eea] to-[#764ba2] relative">
+    <div className="min-h-screen flex items-center justify-center p-5 relative" style={{ backgroundColor: bgColor }}>
       <Sheet>
         <SheetTrigger asChild>
           <Button
@@ -391,7 +349,7 @@ export default function Home() {
               Customize video playback and button appearance
             </SheetDescription>
           </SheetHeader>
-          
+
           <div className="flex flex-col gap-6 mt-6 flex-1 overflow-y-auto pb-6">
             <div className="space-y-3">
               <Label htmlFor="video-url-input" className="text-sm font-medium flex items-center gap-2">
@@ -408,29 +366,54 @@ export default function Home() {
             </div>
 
             <div className="space-y-3">
-              <Label htmlFor="title-input" className="text-sm font-medium">
-                Title
-              </Label>
-              <Input
-                id="title-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter title"
-                data-testid="input-title"
-              />
+              <Label htmlFor="title-input" className="text-sm font-medium">Title</Label>
+              <Input id="title-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter title" data-testid="input-title" />
             </div>
 
             <div className="space-y-3">
-              <Label htmlFor="button-label-input" className="text-sm font-medium">
-                Button Label
+              <Label htmlFor="button-label-input" className="text-sm font-medium">Button Label</Label>
+              <Input id="button-label-input" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Enter button label" data-testid="input-button-label" />
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Maximize2 className="w-4 h-4" />
+                Shape
               </Label>
-              <Input
-                id="button-label-input"
-                value={buttonLabel}
-                onChange={(e) => setButtonLabel(e.target.value)}
-                placeholder="Enter button label"
-                data-testid="input-button-label"
-              />
+              <div className="grid grid-cols-4 gap-2">
+                {(["circle", "oval", "square", "rectangle"] as ContainerShape[]).map((s) => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={shape === s ? "default" : "outline"}
+                    onClick={() => setShape(s)}
+                    className="text-xs capitalize"
+                    data-testid={`button-shape-${s}`}
+                  >
+                    {s}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Maximize2 className="w-4 h-4" />
+                  Scale
+                </Label>
+                <span className="text-sm text-muted-foreground">{scale[0]}%</span>
+              </div>
+              <Slider value={scale} onValueChange={setScale} min={50} max={200} step={5} className="w-full" data-testid="slider-scale" />
+            </div>
+
+            <div className="space-y-4 p-3 bg-muted rounded-md">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Palette className="w-4 h-4" />
+                Colors
+              </Label>
+              <ColorPickerField label="Page Background" color={bgColor} onChange={setBgColor} testId="color-bg" />
+              <ColorPickerField label="Border Color" color={borderColor} onChange={setBorderColor} testId="color-border" />
             </div>
 
             <div className="space-y-3">
@@ -443,15 +426,7 @@ export default function Home() {
                   {formatTime(currentTime)} / {formatTime(duration)}
                 </span>
               </div>
-              <Slider
-                value={progress}
-                onValueChange={handleProgressChange}
-                onValueCommit={handleProgressCommit}
-                max={100}
-                step={0.1}
-                className="w-full"
-                data-testid="slider-progress"
-              />
+              <Slider value={progress} onValueChange={handleProgressChange} onValueCommit={handleProgressCommit} max={100} step={0.1} className="w-full" data-testid="slider-progress" />
             </div>
 
             <div className="space-y-3">
@@ -462,14 +437,7 @@ export default function Home() {
                 </Label>
                 <span className="text-sm text-muted-foreground">{volume[0]}%</span>
               </div>
-              <Slider
-                value={volume}
-                onValueChange={setVolume}
-                max={100}
-                step={1}
-                className="w-full"
-                data-testid="slider-volume"
-              />
+              <Slider value={volume} onValueChange={setVolume} max={100} step={1} className="w-full" data-testid="slider-volume" />
             </div>
 
             <div className="flex items-center justify-between">
@@ -477,12 +445,7 @@ export default function Home() {
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 Muted
               </Label>
-              <Switch
-                id="mute-toggle"
-                checked={isMuted}
-                onCheckedChange={handleMuteToggle}
-                data-testid="switch-mute"
-              />
+              <Switch id="mute-toggle" checked={isMuted} onCheckedChange={handleMuteToggle} data-testid="switch-mute" />
             </div>
 
             <div className="flex items-center justify-between">
@@ -490,23 +453,8 @@ export default function Home() {
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 Transport
               </Label>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handlePlayToggle}
-                data-testid="button-transport"
-              >
-                {isPlaying ? (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    Play
-                  </>
-                )}
+              <Button size="sm" variant="outline" onClick={handlePlayToggle} data-testid="button-transport">
+                {isPlaying ? (<><Pause className="w-4 h-4 mr-2" />Pause</>) : (<><Play className="w-4 h-4 mr-2" />Play</>)}
               </Button>
             </div>
 
@@ -515,12 +463,7 @@ export default function Home() {
                 <Repeat className="w-4 h-4" />
                 Loop
               </Label>
-              <Switch
-                id="loop-toggle"
-                checked={isLooping}
-                onCheckedChange={handleLoopToggle}
-                data-testid="switch-loop"
-              />
+              <Switch id="loop-toggle" checked={isLooping} onCheckedChange={handleLoopToggle} data-testid="switch-loop" />
             </div>
 
             {isLooping && (
@@ -535,85 +478,37 @@ export default function Home() {
                   <Slider
                     value={[
                       duration > 0 ? (loopStartSeconds / duration) * 100 : 0,
-                      duration > 0 ? ((loopEnd ? loopEndSeconds : duration) / duration) * 100 : 100
+                      duration > 0 ? ((loopEnd ? loopEndSeconds : duration) / duration) * 100 : 100,
                     ]}
                     onValueChange={(values) => {
                       if (duration > 0) {
-                        const startTime = (values[0] / 100) * duration;
-                        const endTime = (values[1] / 100) * duration;
-                        setLoopStart(formatTime(startTime));
-                        if (values[1] < 100) {
-                          setLoopEnd(formatTime(endTime));
-                        } else {
-                          setLoopEnd("");
-                        }
+                        setLoopStart(formatTime((values[0] / 100) * duration));
+                        if (values[1] < 100) { setLoopEnd(formatTime((values[1] / 100) * duration)); }
+                        else { setLoopEnd(""); }
                       }
                     }}
-                    max={100}
-                    step={0.5}
-                    minStepsBetweenThumbs={1}
-                    className="w-full"
-                    data-testid="slider-loop-range"
+                    max={100} step={0.5} minStepsBetweenThumbs={1} className="w-full" data-testid="slider-loop-range"
                   />
                 </div>
 
                 <div className="border-t border-border pt-4 space-y-3">
                   <p className="text-xs text-muted-foreground font-medium">Manual Input</p>
                   <div className="flex items-center justify-between gap-2">
-                    <Label htmlFor="loop-start" className="text-sm font-medium whitespace-nowrap">
-                      Start
-                    </Label>
+                    <Label htmlFor="loop-start" className="text-sm font-medium whitespace-nowrap">Start</Label>
                     <div className="flex items-center gap-2">
-                      <Input
-                        id="loop-start"
-                        value={loopStart}
-                        onChange={(e) => setLoopStart(e.target.value)}
-                        placeholder="0:00"
-                        className="w-20 text-center"
-                        data-testid="input-loop-start"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleSetLoopStartToCurrent}
-                        data-testid="button-set-loop-start"
-                      >
-                        Set
-                      </Button>
+                      <Input id="loop-start" value={loopStart} onChange={(e) => setLoopStart(e.target.value)} placeholder="0:00" className="w-20 text-center" data-testid="input-loop-start" />
+                      <Button size="sm" variant="outline" onClick={handleSetLoopStartToCurrent} data-testid="button-set-loop-start">Set</Button>
                     </div>
                   </div>
-
                   <div className="flex items-center justify-between gap-2">
-                    <Label htmlFor="loop-end" className="text-sm font-medium whitespace-nowrap">
-                      End
-                    </Label>
+                    <Label htmlFor="loop-end" className="text-sm font-medium whitespace-nowrap">End</Label>
                     <div className="flex items-center gap-2">
-                      <Input
-                        id="loop-end"
-                        value={loopEnd}
-                        onChange={(e) => setLoopEnd(e.target.value)}
-                        placeholder="End"
-                        className={`w-20 text-center ${!isLoopValid ? "border-destructive" : ""}`}
-                        data-testid="input-loop-end"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleSetLoopEndToCurrent}
-                        data-testid="button-set-loop-end"
-                      >
-                        Set
-                      </Button>
+                      <Input id="loop-end" value={loopEnd} onChange={(e) => setLoopEnd(e.target.value)} placeholder="End" className={`w-20 text-center ${!isLoopValid ? "border-destructive" : ""}`} data-testid="input-loop-end" />
+                      <Button size="sm" variant="outline" onClick={handleSetLoopEndToCurrent} data-testid="button-set-loop-end">Set</Button>
                     </div>
                   </div>
-                  {!isLoopValid && (
-                    <p className="text-xs text-destructive">
-                      End time must be after start time
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Format: minutes:seconds (e.g., 1:30)
-                  </p>
+                  {!isLoopValid && <p className="text-xs text-destructive">End time must be after start time</p>}
+                  <p className="text-xs text-muted-foreground">Format: minutes:seconds (e.g., 1:30)</p>
                 </div>
               </div>
             )}
@@ -622,7 +517,7 @@ export default function Home() {
       </Sheet>
 
       <div className="text-center">
-        <h1 
+        <h1
           className="text-white text-2xl md:text-3xl font-semibold mb-6 md:mb-8"
           style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
           data-testid="text-title"
@@ -632,7 +527,8 @@ export default function Home() {
 
         <button
           type="button"
-          className="relative w-[180px] h-[180px] sm:w-[220px] sm:h-[220px] md:w-[280px] md:h-[280px] mx-auto cursor-pointer bg-transparent border-none p-0 block"
+          className={`relative ${currentShape.widthClass} ${currentShape.heightClass} mx-auto cursor-pointer bg-transparent border-none p-0 block`}
+          style={{ transform: `scale(${scaleFactor})`, transformOrigin: "center center" }}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           onMouseEnter={() => setIsHovered(true)}
@@ -640,64 +536,52 @@ export default function Home() {
           aria-label="Visit womacromax.com website"
           data-testid="button-video"
         >
-          <div 
+          <div
             ref={containerRef}
-            className="relative w-full h-full rounded-full overflow-hidden transition-shadow duration-300"
+            className="relative w-full h-full overflow-hidden transition-all duration-300"
             style={{
-              boxShadow: isHovered 
-                ? "0 15px 50px rgba(0, 0, 0, 0.4)" 
-                : "0 10px 40px rgba(0, 0, 0, 0.3)",
-              border: "4px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: currentShape.borderRadius,
+              boxShadow: isHovered
+                ? `0 20px 60px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3), inset 0 -2px 6px rgba(0,0,0,0.2)`
+                : `0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25), inset 0 -2px 6px rgba(0,0,0,0.15)`,
+              border: `4px solid ${borderColor}`,
+              transform: isHovered ? "translateY(-4px)" : "translateY(0)",
             }}
           >
-            <div 
-              className="absolute top-1/2 left-1/2 w-[150%] h-[150%] pointer-events-none"
-              style={{
-                transform: "translate(-50%, -50%)",
-              }}
+            <div
+              className="absolute top-1/2 left-1/2 w-[200%] h-[200%] pointer-events-none"
+              style={{ transform: "translate(-50%, -50%)" }}
             >
               <div id="youtube-player" className="w-full h-full pointer-events-none" />
             </div>
 
             <div
               className="absolute z-20 pointer-events-auto"
-              style={{
-                bottom: "15%",
-                right: "15%",
-              }}
+              style={{ bottom: "12%", right: "12%" }}
             >
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMuted((prev) => !prev);
-                }}
-                className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-black/50 flex items-center justify-center text-white/80 hover:bg-black/70 hover:text-white transition-colors"
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={(e) => { e.stopPropagation(); setIsMuted((prev) => !prev); }}
+                className="rounded-full bg-black/50 text-white/80"
                 aria-label={isMuted ? "Unmute video" : "Mute video"}
                 data-testid="button-mute-overlay"
               >
-                {isMuted ? (
-                  <VolumeX className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                ) : (
-                  <Volume2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                )}
-              </button>
+                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </Button>
             </div>
 
-            <div 
+            <div
               className="absolute inset-0 z-10 flex items-center justify-center transition-all duration-300 pointer-events-none"
               style={{
-                background: isHovered 
+                background: isHovered
                   ? "radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 70%)"
                   : "radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)",
               }}
             >
               <div
                 className="flex items-center gap-2 bg-white/90 text-[#667eea] px-4 py-2 md:px-6 md:py-3 rounded-full font-semibold text-xs md:text-sm transition-opacity duration-300"
-                style={{
-                  opacity: isHovered ? 1 : 0,
-                  visibility: isHovered ? "visible" : "hidden",
-                }}
+                style={{ opacity: isHovered ? 1 : 0, visibility: isHovered ? "visible" : "hidden" }}
                 data-testid="text-click-indicator"
               >
                 <span>{buttonLabel}</span>
