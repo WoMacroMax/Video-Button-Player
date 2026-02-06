@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette, ExternalLink } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,6 +134,7 @@ export default function Home() {
   const [isHovered, setIsHovered] = useState(false);
   const [title, setTitle] = useState("Click the Video Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
+  const [buttonUrl, setButtonUrl] = useState("https://womacromax.com");
   const [videoUrl, setVideoUrl] = useState(`https://www.youtube.com/watch?v=${DEFAULT_VIDEO_ID}`);
   const [videoId, setVideoId] = useState(DEFAULT_VIDEO_ID);
   const [volume, setVolume] = useState([50]);
@@ -291,10 +292,10 @@ export default function Home() {
     }
   }, [isPlaying, playerReady]);
 
-  const handleClick = useCallback(() => { window.open("https://womacromax.com", "_blank"); }, []);
+  const handleClick = useCallback(() => { if (buttonUrl) window.open(buttonUrl, "_blank"); }, [buttonUrl]);
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); window.open("https://womacromax.com", "_blank"); }
-  }, []);
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (buttonUrl) window.open(buttonUrl, "_blank"); }
+  }, [buttonUrl]);
   const handleVideoUrlChange = useCallback((value: string) => {
     setVideoUrl(value);
     const extractedId = extractVideoId(value);
@@ -373,6 +374,20 @@ export default function Home() {
             <div className="space-y-3">
               <Label htmlFor="button-label-input" className="text-sm font-medium">Button Label</Label>
               <Input id="button-label-input" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Enter button label" data-testid="input-button-label" />
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="button-url-input" className="text-sm font-medium flex items-center gap-2">
+                <ExternalLink className="w-4 h-4" />
+                Button URL
+              </Label>
+              <Input
+                id="button-url-input"
+                value={buttonUrl}
+                onChange={(e) => setButtonUrl(e.target.value)}
+                placeholder="https://example.com"
+                data-testid="input-button-url"
+              />
             </div>
 
             <div className="space-y-3">
@@ -533,7 +548,7 @@ export default function Home() {
           onKeyDown={handleKeyDown}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          aria-label="Visit womacromax.com website"
+          aria-label={`Visit ${buttonUrl || "website"}`}
           data-testid="button-video"
         >
           <div
