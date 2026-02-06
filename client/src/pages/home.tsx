@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Film } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Film, Music, X } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,6 +156,7 @@ export default function Home() {
   const [bgColor, setBgColor] = useState("#667eea");
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
+  const [stemModalOpen, setStemModalOpen] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const mp4VideoRef = useRef<HTMLVideoElement | null>(null);
   const isLoopingRef = useRef(isLooping);
@@ -678,6 +679,44 @@ export default function Home() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <Button
+        size="icon"
+        variant="ghost"
+        className="absolute top-4 left-16 text-white"
+        aria-label="Open Stem Separator"
+        onClick={() => setStemModalOpen(true)}
+        data-testid="button-stem"
+      >
+        <Music className="w-6 h-6" />
+      </Button>
+
+      {stemModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          data-testid="stem-modal-overlay"
+        >
+          <div className="relative w-[95vw] h-[90vh] max-w-5xl rounded-lg overflow-hidden bg-[#0a0a0f]" data-testid="stem-modal">
+            <button
+              type="button"
+              onClick={() => setStemModalOpen(false)}
+              className="absolute top-3 left-3 z-[60] w-8 h-8 rounded-full bg-red-600 flex items-center justify-center cursor-pointer border-none"
+              style={{ lineHeight: 0 }}
+              aria-label="Close Stem modal"
+              data-testid="button-stem-close"
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
+            <iframe
+              src="/stem.html"
+              className="w-full h-full border-0"
+              title="StemSplit - AI Audio Separation"
+              allow="autoplay; microphone"
+              data-testid="stem-modal-iframe"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="text-center" style={{ display: containerVisible ? "block" : "none" }}>
         <h1
