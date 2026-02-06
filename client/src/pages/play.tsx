@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Music, X } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Music, X, GripHorizontal } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -206,6 +206,7 @@ export default function PlayPage() {
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
   const [stemModalOpen, setStemModalOpen] = useState(false);
+  const [visitModalOpen, setVisitModalOpen] = useState(false);
   const stemIframeRef = useRef<HTMLIFrameElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isLoopingRef = useRef(isLooping);
@@ -352,9 +353,9 @@ export default function PlayPage() {
     setAudioHistory(removeUrlFromHistory(AUDIO_URLS_KEY, url));
   }, []);
 
-  const handleClick = useCallback(() => { if (buttonUrl) window.open(buttonUrl, "_blank"); }, [buttonUrl]);
+  const handleClick = useCallback(() => { if (buttonUrl) setVisitModalOpen(true); }, [buttonUrl]);
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (buttonUrl) window.open(buttonUrl, "_blank"); }
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (buttonUrl) setVisitModalOpen(true); }
   }, [buttonUrl]);
   const triggerUnmutePlay = useCallback(() => {
     if (audioRef.current) {
@@ -649,12 +650,27 @@ export default function PlayPage() {
       <Button
         size="icon"
         variant="ghost"
-        className="absolute top-14 left-4 bg-red-600 text-white hover:bg-red-700"
+        className="absolute top-14 left-4 bg-red-600 text-white"
         aria-label="Open Stem Separator"
-        onClick={() => setStemModalOpen(true)}
+        onClick={() => {
+          setIsPlaying(false);
+          if (audioRef.current) audioRef.current.pause();
+          setStemModalOpen(true);
+        }}
         data-testid="button-stem"
       >
         <Music className="w-6 h-6" />
+      </Button>
+
+      <Button
+        size="icon"
+        variant="ghost"
+        className="absolute top-24 left-4 text-white bg-white/20"
+        aria-label={isPlaying ? "Stop" : "Play"}
+        onClick={handlePlayToggle}
+        data-testid="button-floating-play"
+      >
+        {isPlaying ? <Square className="w-5 h-5" /> : <Play className="w-5 h-5" />}
       </Button>
 
       {stemModalOpen && (
@@ -767,6 +783,7 @@ export default function PlayPage() {
         <HiddenModeControls
           isPlaying={isPlaying}
           isMuted={isMuted}
+          isLooping={isLooping}
           currentTime={currentTime}
           loopStartSeconds={loopStartSeconds}
           loopEndSeconds={loopEndSeconds}
@@ -781,9 +798,13 @@ export default function PlayPage() {
               setCurrentTime(time);
             }
           }}
+          onSetLoopStart={handleSetLoopStartToCurrent}
+          onSetLoopEnd={handleSetLoopEndToCurrent}
           title={title}
         />
       )}
+
+      {visitModalOpen && <VisitSiteModal url={buttonUrl} onClose={() => setVisitModalOpen(false)} />}
     </div>
   );
 }
@@ -791,6 +812,7 @@ export default function PlayPage() {
 function HiddenModeControls({
   isPlaying,
   isMuted,
+  isLooping,
   currentTime,
   loopStartSeconds,
   loopEndSeconds,
@@ -800,10 +822,13 @@ function HiddenModeControls({
   onMuteToggle,
   onVolumeChange,
   onSeek,
+  onSetLoopStart,
+  onSetLoopEnd,
   title,
 }: {
   isPlaying: boolean;
   isMuted: boolean;
+  isLooping: boolean;
   currentTime: number;
   loopStartSeconds: number;
   loopEndSeconds: number;
@@ -813,20 +838,23 @@ function HiddenModeControls({
   onMuteToggle: () => void;
   onVolumeChange: (v: number[]) => void;
   onSeek: (time: number) => void;
+  onSetLoopStart: () => void;
+  onSetLoopEnd: () => void;
   title: string;
 }) {
   const rangeStart = loopStartSeconds;
   const rangeEnd = loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration;
-  const rangeSpan = rangeEnd - rangeStart;
 
-  const scrubPercent = rangeSpan > 0 ? Math.max(0, Math.min(100, ((currentTime - rangeStart) / rangeSpan) * 100)) : 0;
+  const scrubPercent = duration > 0 ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0;
+  const loopStartPercent = duration > 0 ? (loopStartSeconds / duration) * 100 : 0;
+  const loopEndPercent = duration > 0 ? ((loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration) / duration) * 100 : 100;
 
   const handleScrubChange = useCallback((value: number[]) => {
-    if (rangeSpan > 0) {
-      const seekTime = rangeStart + (value[0] / 100) * rangeSpan;
+    if (duration > 0) {
+      const seekTime = (value[0] / 100) * duration;
       onSeek(seekTime);
     }
-  }, [rangeStart, rangeSpan, onSeek]);
+  }, [duration, onSeek]);
 
   const handleSkipBack = useCallback(() => {
     const newTime = Math.max(rangeStart, currentTime - 5);
@@ -852,21 +880,38 @@ function HiddenModeControls({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-white/70 text-xs font-medium">{formatTime(currentTime)}</span>
-            <span className="text-white/70 text-xs font-medium">{formatTime(rangeEnd)}</span>
+            <span className="text-white/70 text-xs font-medium">{formatTime(duration)}</span>
           </div>
-          <Slider
-            value={[scrubPercent]}
-            onValueChange={handleScrubChange}
-            max={100}
-            step={0.1}
-            className="w-full"
-            data-testid="slider-hidden-scrub"
-          />
-          <div className="text-center">
-            <span className="text-white/50 text-xs">
-              Loop: {formatTime(rangeStart)} - {formatTime(rangeEnd)}
-            </span>
+          <div className="relative w-full">
+            {isLooping && duration > 0 && (
+              <div
+                className="absolute top-1/2 -translate-y-1/2 h-2 bg-white/20 rounded-full pointer-events-none z-0"
+                style={{ left: `${loopStartPercent}%`, width: `${loopEndPercent - loopStartPercent}%` }}
+                data-testid="loop-region-indicator"
+              />
+            )}
+            {isLooping && duration > 0 && (
+              <>
+                <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-green-400 pointer-events-none z-10" style={{ left: `${loopStartPercent}%` }} data-testid="loop-start-marker" />
+                <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-red-400 pointer-events-none z-10" style={{ left: `${loopEndPercent}%` }} data-testid="loop-end-marker" />
+              </>
+            )}
+            <Slider
+              value={[scrubPercent]}
+              onValueChange={handleScrubChange}
+              max={100}
+              step={0.1}
+              className="w-full relative z-20"
+              data-testid="slider-hidden-scrub"
+            />
           </div>
+          {isLooping && (
+            <div className="text-center">
+              <span className="text-white/50 text-xs">
+                Loop: {formatTime(rangeStart)} - {formatTime(rangeEnd)}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-center gap-3">
@@ -900,19 +945,31 @@ function HiddenModeControls({
           >
             <SkipForward className="w-5 h-5" />
           </Button>
-        </div>
-
-        <div className="flex items-center gap-3">
           <Button
             size="icon"
             variant="ghost"
             onClick={onMuteToggle}
-            className="text-white/80 flex-shrink-0"
+            className="text-white/80"
             aria-label={isMuted ? "Unmute" : "Mute"}
             data-testid="button-hidden-mute"
           >
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </Button>
+        </div>
+
+        {isLooping && (
+          <div className="flex items-center justify-center gap-2">
+            <Repeat className="w-3 h-3 text-white/50" />
+            <Button size="sm" variant="ghost" onClick={onSetLoopStart} className="text-white/70 text-xs" data-testid="button-hidden-set-loop-start">
+              Set Start
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onSetLoopEnd} className="text-white/70 text-xs" data-testid="button-hidden-set-loop-end">
+              Set End
+            </Button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
           <Slider
             value={volume}
             onValueChange={onVolumeChange}
@@ -923,6 +980,71 @@ function HiddenModeControls({
           />
           <span className="text-white/60 text-xs w-8 text-right flex-shrink-0">{volume[0]}%</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function VisitSiteModal({ url, onClose }: { url: string; onClose: () => void }) {
+  const [sheetY, setSheetY] = useState(10);
+  const [isDragging, setIsDragging] = useState(false);
+  const startY = useRef(0);
+  const startSheetY = useRef(0);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    setIsDragging(true);
+    startY.current = e.clientY;
+    startSheetY.current = sheetY;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [sheetY]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const deltaPercent = ((e.clientY - startY.current) / window.innerHeight) * 100;
+    const newY = Math.max(0, Math.min(85, startSheetY.current + deltaPercent));
+    setSheetY(newY);
+  }, [isDragging]);
+
+  const handlePointerUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60" onClick={onClose} data-testid="visit-modal-overlay">
+      <div
+        className="absolute left-0 right-0 bottom-0 bg-background rounded-t-xl flex flex-col"
+        style={{ top: `${sheetY}%`, transition: isDragging ? "none" : "top 0.3s ease" }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="visit-modal"
+      >
+        <div
+          className="flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing select-none flex-shrink-0"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          data-testid="visit-modal-handle"
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0"
+            aria-label="Close"
+            data-testid="button-visit-modal-close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex-1 flex justify-center">
+            <GripHorizontal className="w-8 h-5 text-muted-foreground" />
+          </div>
+          <div className="w-8" />
+        </div>
+        <iframe
+          src={url}
+          className="flex-1 w-full border-0"
+          title="Visit Site"
+          allow="autoplay; fullscreen"
+          data-testid="visit-modal-iframe"
+        />
       </div>
     </div>
   );
