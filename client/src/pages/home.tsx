@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Film } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+
+type SourceMode = "youtube" | "mp4";
 
 declare global {
   interface Window {
@@ -137,6 +139,8 @@ export default function Home() {
   const [buttonUrl, setButtonUrl] = useState("https://womacromax.com");
   const [videoUrl, setVideoUrl] = useState(`https://www.youtube.com/watch?v=${DEFAULT_VIDEO_ID}`);
   const [videoId, setVideoId] = useState(DEFAULT_VIDEO_ID);
+  const [mp4Url, setMp4Url] = useState("");
+  const [sourceMode, setSourceMode] = useState<SourceMode>("youtube");
   const [volume, setVolume] = useState([50]);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -153,6 +157,7 @@ export default function Home() {
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
   const playerRef = useRef<YouTubePlayer | null>(null);
+  const mp4VideoRef = useRef<HTMLVideoElement | null>(null);
   const isLoopingRef = useRef(isLooping);
   const loopStartRef = useRef(0);
   const loopEndRef = useRef(0);
@@ -163,6 +168,8 @@ export default function Home() {
   const progressIntervalRef = useRef<number | null>(null);
   const isSeeking = useRef(false);
   const volumeRef = useRef(50);
+  const sourceModeRef = useRef<SourceMode>(sourceMode);
+  useEffect(() => { sourceModeRef.current = sourceMode; }, [sourceMode]);
 
   useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
   useEffect(() => {
@@ -240,29 +247,91 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!playerReady || !playerRef.current) return;
+    if (sourceMode !== "mp4") return;
+    const video = mp4VideoRef.current;
+    if (!video) return;
+
+    const onLoadedMetadata = () => {
+      const dur = video.duration;
+      if (isFinite(dur) && dur > 0) {
+        setDuration(dur);
+        setPlayerReady(true);
+      }
+      video.volume = volumeRef.current / 100;
+      video.muted = true;
+      video.play().then(() => setIsPlaying(true)).catch(() => {});
+    };
+    const onEnded = () => {
+      if (isLoopingRef.current) {
+        video.currentTime = loopStartRef.current;
+        video.play().catch(() => {});
+      } else {
+        setIsPlaying(false);
+      }
+    };
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onDurationChange = () => {
+      if (isFinite(video.duration) && video.duration > 0) setDuration(video.duration);
+    };
+
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("ended", onEnded);
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("durationchange", onDurationChange);
+
+    if (video.readyState >= 1) onLoadedMetadata();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("ended", onEnded);
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("durationchange", onDurationChange);
+    };
+  }, [sourceMode, mp4Url]);
+
+  useEffect(() => {
+    if (sourceMode === "youtube" && (!playerReady || !playerRef.current)) return;
+    if (sourceMode === "mp4" && !mp4VideoRef.current) return;
+
     const updateProgress = () => {
-      if (!playerRef.current || isSeeking.current) return;
-      try {
-        const state = playerRef.current.getPlayerState();
-        if (state !== 1 && state !== 3) return;
-        const time = playerRef.current.getCurrentTime();
-        const dur = playerRef.current.getDuration();
-        if (dur > 0) {
+      if (isSeeking.current) return;
+      if (sourceModeRef.current === "youtube" && playerRef.current) {
+        try {
+          const state = playerRef.current.getPlayerState();
+          if (state !== 1 && state !== 3) return;
+          const time = playerRef.current.getCurrentTime();
+          const dur = playerRef.current.getDuration();
+          if (dur > 0) {
+            setCurrentTime(time);
+            setDuration(dur);
+            setProgress([(time / dur) * 100]);
+            if (isLoopingRef.current && loopEndRef.current > loopStartRef.current && time >= loopEndRef.current) {
+              playerRef.current.seekTo(loopStartRef.current, true);
+            }
+          }
+        } catch { /* Player may not be ready */ }
+      } else if (sourceModeRef.current === "mp4" && mp4VideoRef.current) {
+        const video = mp4VideoRef.current;
+        const time = video.currentTime;
+        const dur = video.duration;
+        if (isFinite(dur) && dur > 0) {
           setCurrentTime(time);
-          setDuration(dur);
           setProgress([(time / dur) * 100]);
           if (isLoopingRef.current && loopEndRef.current > loopStartRef.current && time >= loopEndRef.current) {
-            playerRef.current.seekTo(loopStartRef.current, true);
+            video.currentTime = loopStartRef.current;
           }
         }
-      } catch { /* Player may not be ready */ }
+      }
     };
     progressIntervalRef.current = window.setInterval(updateProgress, 200);
     return () => { if (progressIntervalRef.current) window.clearInterval(progressIntervalRef.current); };
-  }, [playerReady]);
+  }, [playerReady, sourceMode, mp4Url]);
 
   useEffect(() => {
+    if (sourceMode !== "youtube") return;
     if (playerReady && playerRef.current) {
       setCurrentTime(0);
       setProgress([0]);
@@ -273,25 +342,47 @@ export default function Home() {
       setLoopEnd("");
       setLoopStart("0:00");
     }
-  }, [videoId, playerReady, isMuted]);
+  }, [videoId, playerReady, isMuted, sourceMode]);
 
   useEffect(() => {
-    if (playerReady && playerRef.current) playerRef.current.setVolume(volume[0]);
-  }, [volume, playerReady]);
+    if (sourceMode === "youtube" && playerReady && playerRef.current) {
+      playerRef.current.setVolume(volume[0]);
+    } else if (sourceMode === "mp4" && mp4VideoRef.current) {
+      mp4VideoRef.current.volume = volume[0] / 100;
+    }
+  }, [volume, playerReady, sourceMode]);
 
   useEffect(() => {
-    if (playerReady && playerRef.current) {
+    if (sourceMode === "youtube" && playerReady && playerRef.current) {
       if (isMuted) { playerRef.current.mute(); }
       else { playerRef.current.unMute(); playerRef.current.setVolume(volumeRef.current); }
+    } else if (sourceMode === "mp4" && mp4VideoRef.current) {
+      mp4VideoRef.current.muted = isMuted;
     }
-  }, [isMuted, playerReady]);
+  }, [isMuted, playerReady, sourceMode]);
 
   useEffect(() => {
-    if (playerReady && playerRef.current) {
+    if (sourceMode === "youtube" && playerReady && playerRef.current) {
       if (isPlaying) playerRef.current.playVideo();
       else playerRef.current.pauseVideo();
+    } else if (sourceMode === "mp4" && mp4VideoRef.current) {
+      if (isPlaying) mp4VideoRef.current.play().catch(() => {});
+      else mp4VideoRef.current.pause();
     }
-  }, [isPlaying, playerReady]);
+  }, [isPlaying, playerReady, sourceMode]);
+
+  useEffect(() => {
+    setCurrentTime(0);
+    setProgress([0]);
+    setDuration(0);
+    setPlayerReady(false);
+    setLoopEnd("");
+    setLoopStart("0:00");
+    if (sourceMode === "youtube" && playerRef.current) {
+      playerRef.current.loadVideoById(videoId);
+      setPlayerReady(true);
+    }
+  }, [sourceMode]);
 
   const handleClick = useCallback(() => { if (buttonUrl) window.open(buttonUrl, "_blank"); }, [buttonUrl]);
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -302,14 +393,30 @@ export default function Home() {
     const extractedId = extractVideoId(value);
     if (extractedId) setVideoId(extractedId);
   }, []);
+  const handleMp4UrlChange = useCallback((value: string) => {
+    setMp4Url(value);
+    setCurrentTime(0);
+    setProgress([0]);
+    setDuration(0);
+    setPlayerReady(false);
+    setLoopEnd("");
+    setLoopStart("0:00");
+  }, []);
+  const handleSourceModeToggle = useCallback((checked: boolean) => {
+    setSourceMode(checked ? "mp4" : "youtube");
+  }, []);
   const handleMuteToggle = useCallback((checked: boolean) => { setIsMuted(checked); }, []);
   const handlePlayToggle = useCallback(() => { setIsPlaying((prev) => !prev); }, []);
   const handleLoopToggle = useCallback((checked: boolean) => { setIsLooping(checked); }, []);
   const handleProgressChange = useCallback((value: number[]) => { isSeeking.current = true; setProgress(value); }, []);
   const handleProgressCommit = useCallback((value: number[]) => {
-    if (playerRef.current && durationRef.current > 0) {
+    if (durationRef.current > 0) {
       const seekTime = (value[0] / 100) * durationRef.current;
-      playerRef.current.seekTo(seekTime, true);
+      if (sourceModeRef.current === "youtube" && playerRef.current) {
+        playerRef.current.seekTo(seekTime, true);
+      } else if (sourceModeRef.current === "mp4" && mp4VideoRef.current) {
+        mp4VideoRef.current.currentTime = seekTime;
+      }
       setCurrentTime(seekTime);
     }
     isSeeking.current = false;
@@ -354,9 +461,41 @@ export default function Home() {
 
           <div className="flex flex-col gap-6 mt-6 flex-1 overflow-y-auto pb-6">
             <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Film className="w-4 h-4" />
+                  Source
+                </Label>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium ${sourceMode === "youtube" ? "text-foreground" : "text-muted-foreground"}`}>YouTube</span>
+                  <Switch
+                    checked={sourceMode === "mp4"}
+                    onCheckedChange={handleSourceModeToggle}
+                    data-testid="switch-source-mode"
+                  />
+                  <span className={`text-xs font-medium ${sourceMode === "mp4" ? "text-foreground" : "text-muted-foreground"}`}>MP4</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3" style={{ display: sourceMode === "mp4" ? "block" : "none" }}>
+              <Label htmlFor="mp4-url-input" className="text-sm font-medium flex items-center gap-2">
+                <Link className="w-4 h-4" />
+                MP4 URL
+              </Label>
+              <Input
+                id="mp4-url-input"
+                value={mp4Url}
+                onChange={(e) => handleMp4UrlChange(e.target.value)}
+                placeholder="Direct MP4 video file URL"
+                data-testid="input-mp4-url"
+              />
+            </div>
+
+            <div className="space-y-3" style={{ display: sourceMode === "youtube" ? "block" : "none" }}>
               <Label htmlFor="video-url-input" className="text-sm font-medium flex items-center gap-2">
                 <Link className="w-4 h-4" />
-                Video URL
+                YouTube URL
               </Label>
               <Input
                 id="video-url-input"
@@ -574,10 +713,22 @@ export default function Home() {
           >
             <div
               className="absolute top-1/2 left-1/2 w-[200%] h-[200%] pointer-events-none"
-              style={{ transform: "translate(-50%, -50%)" }}
+              style={{ transform: "translate(-50%, -50%)", display: sourceMode === "youtube" ? "block" : "none" }}
             >
               <div id="youtube-player" className="w-full h-full pointer-events-none" />
             </div>
+
+            {sourceMode === "mp4" && mp4Url && (
+              <video
+                ref={mp4VideoRef}
+                src={mp4Url}
+                className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto pointer-events-none object-cover"
+                style={{ transform: "translate(-50%, -50%)" }}
+                muted
+                playsInline
+                preload="metadata"
+              />
+            )}
 
             <div
               className="absolute z-20 pointer-events-auto"
@@ -629,10 +780,12 @@ export default function Home() {
           onMuteToggle={() => setIsMuted((prev) => !prev)}
           onVolumeChange={setVolume}
           onSeek={(time) => {
-            if (playerRef.current) {
+            if (sourceMode === "youtube" && playerRef.current) {
               playerRef.current.seekTo(time, true);
-              setCurrentTime(time);
+            } else if (sourceMode === "mp4" && mp4VideoRef.current) {
+              mp4VideoRef.current.currentTime = time;
             }
+            setCurrentTime(time);
           }}
           title={title}
         />
