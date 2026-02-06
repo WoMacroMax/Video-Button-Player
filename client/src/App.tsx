@@ -5,11 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import PlayPage from "@/pages/play";
 
 function Router() {
   return (
     <Switch>
       <Route path="/view" component={Home} />
+      <Route path="/play" component={PlayPage} />
       <Route path="/">
         <Redirect to="/view" />
       </Route>

@@ -1,8 +1,13 @@
-# Video Button SPA
+# Media Button SPA
 
 ## Overview
 
-A simple single-page application featuring an interactive video button component that redirects users to an external website. The application is built with a React frontend and Express backend, using a full-stack TypeScript architecture with PostgreSQL database support.
+A media container web app with two routes: `/view` for YouTube videos and `/play` for audio files (mp3, mp4, wav, ogg, etc.). Both routes feature interactive button containers that redirect users to an external website, with comprehensive customization options including shape control, scaling, 3D shadows, color pickers, loop controls, transport controls, volume management, and visibility toggle with inline controls.
+
+## Routes
+- `/view` — YouTube video player using YouTube IFrame API (`client/src/pages/home.tsx`)
+- `/play` — Audio file player using HTML5 `<audio>` element with Web Audio API visualizer (`client/src/pages/play.tsx`)
+- `/` — Redirects to `/view`
 
 ## User Preferences
 
