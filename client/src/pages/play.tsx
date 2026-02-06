@@ -17,6 +17,45 @@ import {
 
 const DEFAULT_AUDIO_URL = "https://xrwnptogkhxeyamjcxhd.supabase.co/storage/v1/object/public/attachments/1770396018869-OneDanceSnippet.mp4";
 
+const AUDIO_URLS_KEY = "play-audio-urls";
+const MAX_HISTORY = 20;
+
+function loadUrlHistory(key: string): string[] {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+function saveUrlToHistory(key: string, url: string): string[] {
+  if (!url.trim()) return loadUrlHistory(key);
+  const history = loadUrlHistory(key);
+  const filtered = history.filter((u) => u !== url);
+  const updated = [url, ...filtered].slice(0, MAX_HISTORY);
+  localStorage.setItem(key, JSON.stringify(updated));
+  return updated;
+}
+
+function removeUrlFromHistory(key: string, url: string): string[] {
+  const history = loadUrlHistory(key).filter((u) => u !== url);
+  localStorage.setItem(key, JSON.stringify(history));
+  return history;
+}
+
+function getLabelForUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const filename = u.pathname.split("/").pop();
+    if (filename && filename.length > 1) {
+      const decoded = decodeURIComponent(filename);
+      return decoded.length > 50 ? decoded.slice(0, 47) + "..." : decoded;
+    }
+    return u.hostname + u.pathname.slice(0, 30);
+  } catch {
+    return url.length > 50 ? url.slice(0, 47) + "..." : url;
+  }
+}
+
 type ContainerShape = "circle" | "oval" | "square" | "rectangle";
 
 const shapeStyles: Record<ContainerShape, { borderRadius: string; aspect: string; widthClass: string; heightClass: string }> = {
@@ -146,7 +185,11 @@ export default function PlayPage() {
   const [title, setTitle] = useState("Click the Audio Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
   const [buttonUrl, setButtonUrl] = useState("https://womacromax.com");
-  const [audioUrl, setAudioUrl] = useState(DEFAULT_AUDIO_URL);
+  const [audioHistory, setAudioHistory] = useState<string[]>(() => loadUrlHistory(AUDIO_URLS_KEY));
+  const [audioUrl, setAudioUrl] = useState(() => {
+    const history = loadUrlHistory(AUDIO_URLS_KEY);
+    return history.length > 0 ? history[0] : DEFAULT_AUDIO_URL;
+  });
   const [volume, setVolume] = useState([50]);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -173,6 +216,13 @@ export default function PlayPage() {
   const progressIntervalRef = useRef<number | null>(null);
   const isSeeking = useRef(false);
   const autoPlayAttempted = useRef(false);
+
+  useEffect(() => {
+    if (audioUrl.trim() && audioHistory.length === 0) {
+      setAudioHistory(saveUrlToHistory(AUDIO_URLS_KEY, audioUrl));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
   useEffect(() => {
@@ -284,6 +334,23 @@ export default function PlayPage() {
     setLoopStart("0:00");
     autoPlayAttempted.current = false;
   }, []);
+  const handleAudioUrlCommit = useCallback(() => {
+    if (audioUrl.trim()) setAudioHistory(saveUrlToHistory(AUDIO_URLS_KEY, audioUrl));
+  }, [audioUrl]);
+  const handleAudioHistorySelect = useCallback((url: string) => {
+    setAudioUrl(url);
+    setCurrentTime(0);
+    setProgress([0]);
+    setDuration(0);
+    setPlayerReady(false);
+    setLoopEnd("");
+    setLoopStart("0:00");
+    autoPlayAttempted.current = false;
+    setAudioHistory(saveUrlToHistory(AUDIO_URLS_KEY, url));
+  }, []);
+  const handleRemoveAudioUrl = useCallback((url: string) => {
+    setAudioHistory(removeUrlFromHistory(AUDIO_URLS_KEY, url));
+  }, []);
 
   const handleClick = useCallback(() => { if (buttonUrl) window.open(buttonUrl, "_blank"); }, [buttonUrl]);
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -361,9 +428,37 @@ export default function PlayPage() {
                 id="audio-url-input"
                 value={audioUrl}
                 onChange={(e) => handleAudioUrlChange(e.target.value)}
+                onBlur={handleAudioUrlCommit}
+                onKeyDown={(e) => { if (e.key === "Enter") handleAudioUrlCommit(); }}
                 placeholder="Audio file URL (.mp3, .mp4, .wav, .ogg...)"
                 data-testid="input-audio-url"
               />
+              {audioHistory.length > 0 && (
+                <div className="space-y-1" data-testid="dropdown-audio-history">
+                  <Label className="text-xs text-muted-foreground">Recent Audio URLs</Label>
+                  <div className="max-h-32 overflow-y-auto rounded-md border bg-background">
+                    {audioHistory.map((url) => (
+                      <div
+                        key={url}
+                        className="flex items-center gap-1 px-2 py-1.5 text-xs hover-elevate cursor-pointer group"
+                        onClick={() => handleAudioHistorySelect(url)}
+                        data-testid={`audio-history-item`}
+                      >
+                        <span className="flex-1 text-left truncate" title={url}>
+                          {getLabelForUrl(url)}
+                        </span>
+                        <span
+                          className="shrink-0 visibility-hidden group-hover:visibility-visible rounded-sm p-0.5 hover:bg-muted"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveAudioUrl(url); }}
+                          data-testid="audio-history-remove"
+                        >
+                          <X className="w-3 h-3" />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">

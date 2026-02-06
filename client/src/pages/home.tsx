@@ -62,6 +62,51 @@ interface YouTubePlayer {
 
 const DEFAULT_VIDEO_ID = "M7lc1UVf-VE";
 
+const YOUTUBE_URLS_KEY = "view-youtube-urls";
+const MP4_URLS_KEY = "view-mp4-urls";
+const MAX_HISTORY = 20;
+
+function loadUrlHistory(key: string): string[] {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+function saveUrlToHistory(key: string, url: string): string[] {
+  if (!url.trim()) return loadUrlHistory(key);
+  const history = loadUrlHistory(key);
+  const filtered = history.filter((u) => u !== url);
+  const updated = [url, ...filtered].slice(0, MAX_HISTORY);
+  localStorage.setItem(key, JSON.stringify(updated));
+  return updated;
+}
+
+function removeUrlFromHistory(key: string, url: string): string[] {
+  const history = loadUrlHistory(key).filter((u) => u !== url);
+  localStorage.setItem(key, JSON.stringify(history));
+  return history;
+}
+
+function getLabelForUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be")) {
+      const vParam = u.searchParams.get("v");
+      if (vParam) return `youtube.com/watch?v=${vParam}`;
+      return u.hostname + u.pathname;
+    }
+    const filename = u.pathname.split("/").pop();
+    if (filename && filename.length > 1) {
+      const decoded = decodeURIComponent(filename);
+      return decoded.length > 50 ? decoded.slice(0, 47) + "..." : decoded;
+    }
+    return u.hostname + u.pathname.slice(0, 30);
+  } catch {
+    return url.length > 50 ? url.slice(0, 47) + "..." : url;
+  }
+}
+
 type ContainerShape = "circle" | "oval" | "square" | "rectangle";
 
 const shapeStyles: Record<ContainerShape, { borderRadius: string; aspect: string; widthClass: string; heightClass: string }> = {
@@ -137,9 +182,24 @@ export default function Home() {
   const [title, setTitle] = useState("Click the Video Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
   const [buttonUrl, setButtonUrl] = useState("https://womacromax.com");
-  const [videoUrl, setVideoUrl] = useState(`https://www.youtube.com/watch?v=${DEFAULT_VIDEO_ID}`);
-  const [videoId, setVideoId] = useState(DEFAULT_VIDEO_ID);
-  const [mp4Url, setMp4Url] = useState("");
+  const [youtubeHistory, setYoutubeHistory] = useState<string[]>(() => loadUrlHistory(YOUTUBE_URLS_KEY));
+  const [mp4History, setMp4History] = useState<string[]>(() => loadUrlHistory(MP4_URLS_KEY));
+  const [videoUrl, setVideoUrl] = useState(() => {
+    const history = loadUrlHistory(YOUTUBE_URLS_KEY);
+    return history.length > 0 ? history[0] : `https://www.youtube.com/watch?v=${DEFAULT_VIDEO_ID}`;
+  });
+  const [videoId, setVideoId] = useState(() => {
+    const history = loadUrlHistory(YOUTUBE_URLS_KEY);
+    if (history.length > 0) {
+      const id = extractVideoId(history[0]);
+      return id || DEFAULT_VIDEO_ID;
+    }
+    return DEFAULT_VIDEO_ID;
+  });
+  const [mp4Url, setMp4Url] = useState(() => {
+    const history = loadUrlHistory(MP4_URLS_KEY);
+    return history.length > 0 ? history[0] : "";
+  });
   const [sourceMode, setSourceMode] = useState<SourceMode>("youtube");
   const [volume, setVolume] = useState([50]);
   const [isMuted, setIsMuted] = useState(true);
@@ -172,6 +232,16 @@ export default function Home() {
   const volumeRef = useRef(50);
   const sourceModeRef = useRef<SourceMode>(sourceMode);
   useEffect(() => { sourceModeRef.current = sourceMode; }, [sourceMode]);
+
+  useEffect(() => {
+    if (videoUrl.trim() && youtubeHistory.length === 0) {
+      setYoutubeHistory(saveUrlToHistory(YOUTUBE_URLS_KEY, videoUrl));
+    }
+    if (mp4Url.trim() && mp4History.length === 0) {
+      setMp4History(saveUrlToHistory(MP4_URLS_KEY, mp4Url));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
   useEffect(() => {
@@ -395,6 +465,9 @@ export default function Home() {
     const extractedId = extractVideoId(value);
     if (extractedId) setVideoId(extractedId);
   }, []);
+  const handleVideoUrlCommit = useCallback(() => {
+    if (videoUrl.trim()) setYoutubeHistory(saveUrlToHistory(YOUTUBE_URLS_KEY, videoUrl));
+  }, [videoUrl]);
   const handleMp4UrlChange = useCallback((value: string) => {
     setMp4Url(value);
     setCurrentTime(0);
@@ -403,6 +476,31 @@ export default function Home() {
     setPlayerReady(false);
     setLoopEnd("");
     setLoopStart("0:00");
+  }, []);
+  const handleMp4UrlCommit = useCallback(() => {
+    if (mp4Url.trim()) setMp4History(saveUrlToHistory(MP4_URLS_KEY, mp4Url));
+  }, [mp4Url]);
+  const handleYoutubeHistorySelect = useCallback((url: string) => {
+    setVideoUrl(url);
+    const extractedId = extractVideoId(url);
+    if (extractedId) setVideoId(extractedId);
+    setYoutubeHistory(saveUrlToHistory(YOUTUBE_URLS_KEY, url));
+  }, []);
+  const handleMp4HistorySelect = useCallback((url: string) => {
+    setMp4Url(url);
+    setCurrentTime(0);
+    setProgress([0]);
+    setDuration(0);
+    setPlayerReady(false);
+    setLoopEnd("");
+    setLoopStart("0:00");
+    setMp4History(saveUrlToHistory(MP4_URLS_KEY, url));
+  }, []);
+  const handleRemoveYoutubeUrl = useCallback((url: string) => {
+    setYoutubeHistory(removeUrlFromHistory(YOUTUBE_URLS_KEY, url));
+  }, []);
+  const handleRemoveMp4Url = useCallback((url: string) => {
+    setMp4History(removeUrlFromHistory(MP4_URLS_KEY, url));
   }, []);
   const handleSourceModeToggle = useCallback((checked: boolean) => {
     setSourceMode(checked ? "mp4" : "youtube");
@@ -501,9 +599,37 @@ export default function Home() {
                 id="mp4-url-input"
                 value={mp4Url}
                 onChange={(e) => handleMp4UrlChange(e.target.value)}
+                onBlur={handleMp4UrlCommit}
+                onKeyDown={(e) => { if (e.key === "Enter") handleMp4UrlCommit(); }}
                 placeholder="Direct MP4 video file URL"
                 data-testid="input-mp4-url"
               />
+              {mp4History.length > 0 && (
+                <div className="space-y-1" data-testid="dropdown-mp4-history">
+                  <Label className="text-xs text-muted-foreground">Recent MP4 URLs</Label>
+                  <div className="max-h-32 overflow-y-auto rounded-md border bg-background">
+                    {mp4History.map((url) => (
+                      <div
+                        key={url}
+                        className="flex items-center gap-1 px-2 py-1.5 text-xs hover-elevate cursor-pointer group"
+                        onClick={() => handleMp4HistorySelect(url)}
+                        data-testid={`mp4-history-item`}
+                      >
+                        <span className="flex-1 text-left truncate" title={url}>
+                          {getLabelForUrl(url)}
+                        </span>
+                        <span
+                          className="shrink-0 visibility-hidden group-hover:visibility-visible rounded-sm p-0.5 hover:bg-muted"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveMp4Url(url); }}
+                          data-testid="mp4-history-remove"
+                        >
+                          <X className="w-3 h-3" />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3" style={{ display: sourceMode === "youtube" ? "block" : "none" }}>
@@ -515,9 +641,37 @@ export default function Home() {
                 id="video-url-input"
                 value={videoUrl}
                 onChange={(e) => handleVideoUrlChange(e.target.value)}
+                onBlur={handleVideoUrlCommit}
+                onKeyDown={(e) => { if (e.key === "Enter") handleVideoUrlCommit(); }}
                 placeholder="YouTube URL or Video ID"
                 data-testid="input-video-url"
               />
+              {youtubeHistory.length > 0 && (
+                <div className="space-y-1" data-testid="dropdown-youtube-history">
+                  <Label className="text-xs text-muted-foreground">Recent YouTube URLs</Label>
+                  <div className="max-h-32 overflow-y-auto rounded-md border bg-background">
+                    {youtubeHistory.map((url) => (
+                      <div
+                        key={url}
+                        className="flex items-center gap-1 px-2 py-1.5 text-xs hover-elevate cursor-pointer group"
+                        onClick={() => handleYoutubeHistorySelect(url)}
+                        data-testid={`youtube-history-item`}
+                      >
+                        <span className="flex-1 text-left truncate" title={url}>
+                          {getLabelForUrl(url)}
+                        </span>
+                        <span
+                          className="shrink-0 visibility-hidden group-hover:visibility-visible rounded-sm p-0.5 hover:bg-muted"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveYoutubeUrl(url); }}
+                          data-testid="youtube-history-remove"
+                        >
+                          <X className="w-3 h-3" />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
