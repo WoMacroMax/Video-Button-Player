@@ -214,7 +214,7 @@ export default function PlayPage() {
   const [shape, setShape] = useState<ContainerShape>("circle");
   const [scale, setScale] = useState([100]);
   const [containerPosX, setContainerPosX] = useState(50);
-  const [containerPosY, setContainerPosY] = useState(50);
+  const [containerPosY, setContainerPosY] = useState(20);
   const [bgColor, setBgColor] = useState("#667eea");
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
