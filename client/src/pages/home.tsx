@@ -231,6 +231,23 @@ export default function Home() {
   const [bgColor, setBgColor] = useState("#667eea");
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
+
+  const [iframe1Url, setIframe1Url] = useState("");
+  const [iframe1PosX, setIframe1PosX] = useState(25);
+  const [iframe1PosY, setIframe1PosY] = useState(50);
+  const [iframe1Scale, setIframe1Scale] = useState([100]);
+  const [iframe1Width, setIframe1Width] = useState([400]);
+  const [iframe1Height, setIframe1Height] = useState([300]);
+  const [iframe1Visible, setIframe1Visible] = useState(true);
+
+  const [iframe2Url, setIframe2Url] = useState("");
+  const [iframe2PosX, setIframe2PosX] = useState(75);
+  const [iframe2PosY, setIframe2PosY] = useState(50);
+  const [iframe2Scale, setIframe2Scale] = useState([100]);
+  const [iframe2Width, setIframe2Width] = useState([400]);
+  const [iframe2Height, setIframe2Height] = useState([300]);
+  const [iframe2Visible, setIframe2Visible] = useState(true);
+
   const [stemModalOpen, setStemModalOpen] = useState(false);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -913,6 +930,115 @@ export default function Home() {
                 </div>
               </div>
             )}
+            <div className="border-t border-border pt-4 space-y-4">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <ExternalLink className="w-4 h-4" />
+                iFrame Container 1
+              </Label>
+              <div className="space-y-3 p-3 bg-muted rounded-md">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    {iframe1Visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    Visible
+                  </Label>
+                  <Switch checked={iframe1Visible} onCheckedChange={setIframe1Visible} data-testid="switch-iframe1-visible" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">URL Source</Label>
+                  <Input value={iframe1Url} onChange={(e) => setIframe1Url(e.target.value)} placeholder="https://example.com" data-testid="input-iframe1-url" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">X position (%)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe1PosX}</span>
+                  </div>
+                  <Slider value={[iframe1PosX]} onValueChange={(v) => setIframe1PosX(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-iframe1-pos-x" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Y position (%)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe1PosY}</span>
+                  </div>
+                  <Slider value={[iframe1PosY]} onValueChange={(v) => setIframe1PosY(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-iframe1-pos-y" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Scale (%)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe1Scale[0]}</span>
+                  </div>
+                  <Slider value={iframe1Scale} onValueChange={setIframe1Scale} min={10} max={300} step={5} className="w-full" data-testid="slider-iframe1-scale" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Width (px)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe1Width[0]}</span>
+                  </div>
+                  <Slider value={iframe1Width} onValueChange={setIframe1Width} min={100} max={1200} step={10} className="w-full" data-testid="slider-iframe1-width" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Height (px)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe1Height[0]}</span>
+                  </div>
+                  <Slider value={iframe1Height} onValueChange={setIframe1Height} min={50} max={900} step={10} className="w-full" data-testid="slider-iframe1-height" />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-4">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <ExternalLink className="w-4 h-4" />
+                iFrame Container 2
+              </Label>
+              <div className="space-y-3 p-3 bg-muted rounded-md">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    {iframe2Visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    Visible
+                  </Label>
+                  <Switch checked={iframe2Visible} onCheckedChange={setIframe2Visible} data-testid="switch-iframe2-visible" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">URL Source</Label>
+                  <Input value={iframe2Url} onChange={(e) => setIframe2Url(e.target.value)} placeholder="https://example.com" data-testid="input-iframe2-url" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">X position (%)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe2PosX}</span>
+                  </div>
+                  <Slider value={[iframe2PosX]} onValueChange={(v) => setIframe2PosX(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-iframe2-pos-x" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Y position (%)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe2PosY}</span>
+                  </div>
+                  <Slider value={[iframe2PosY]} onValueChange={(v) => setIframe2PosY(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-iframe2-pos-y" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Scale (%)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe2Scale[0]}</span>
+                  </div>
+                  <Slider value={iframe2Scale} onValueChange={setIframe2Scale} min={10} max={300} step={5} className="w-full" data-testid="slider-iframe2-scale" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Width (px)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe2Width[0]}</span>
+                  </div>
+                  <Slider value={iframe2Width} onValueChange={setIframe2Width} min={100} max={1200} step={10} className="w-full" data-testid="slider-iframe2-width" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Height (px)</Label>
+                    <span className="text-xs text-muted-foreground">{iframe2Height[0]}</span>
+                  </div>
+                  <Slider value={iframe2Height} onValueChange={setIframe2Height} min={50} max={900} step={10} className="w-full" data-testid="slider-iframe2-height" />
+                </div>
+              </div>
+            </div>
           </div>
           </DraggableResizablePanel>
         </SheetContent>
@@ -1114,6 +1240,50 @@ export default function Home() {
             </div>
           </div>
         </button>
+
+          {iframe1Visible && iframe1Url && (
+            <div
+              className="absolute pointer-events-auto"
+              style={{
+                left: `${iframe1PosX}%`,
+                top: `${iframe1PosY}%`,
+                transform: `translate(-50%, -50%) scale(${iframe1Scale[0] / 100})`,
+                width: `${iframe1Width[0]}px`,
+                height: `${iframe1Height[0]}px`,
+              }}
+              data-testid="iframe1-container"
+            >
+              <iframe
+                src={iframe1Url}
+                className="w-full h-full border-0 rounded-lg shadow-lg"
+                title="iFrame Container 1"
+                allow="autoplay; fullscreen"
+                data-testid="iframe1"
+              />
+            </div>
+          )}
+
+          {iframe2Visible && iframe2Url && (
+            <div
+              className="absolute pointer-events-auto"
+              style={{
+                left: `${iframe2PosX}%`,
+                top: `${iframe2PosY}%`,
+                transform: `translate(-50%, -50%) scale(${iframe2Scale[0] / 100})`,
+                width: `${iframe2Width[0]}px`,
+                height: `${iframe2Height[0]}px`,
+              }}
+              data-testid="iframe2-container"
+            >
+              <iframe
+                src={iframe2Url}
+                className="w-full h-full border-0 rounded-lg shadow-lg"
+                title="iFrame Container 2"
+                allow="autoplay; fullscreen"
+                data-testid="iframe2"
+              />
+            </div>
+          )}
         </div>
       </div>
 
