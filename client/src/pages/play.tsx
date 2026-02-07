@@ -800,32 +800,12 @@ export default function PlayPage() {
       </div>
 
       {stemModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-          data-testid="stem-modal-overlay"
-        >
-          <div className="relative w-[95vw] h-[90vh] max-w-5xl rounded-lg overflow-hidden bg-[#0a0a0f]" data-testid="stem-modal">
-            <button
-              type="button"
-              onClick={() => setStemModalOpen(false)}
-              className="absolute top-3 left-3 z-[60] w-8 h-8 rounded-full bg-red-600 flex items-center justify-center cursor-pointer border-none"
-              style={{ lineHeight: 0 }}
-              aria-label="Close Stem modal"
-              data-testid="button-stem-close"
-            >
-              <X className="w-4 h-4 text-white" />
-            </button>
-            <iframe
-              ref={stemIframeRef}
-              src="/stem.html"
-              className="w-full h-full border-0"
-              title="StemSplit - AI Audio Separation"
-              allow="autoplay; microphone"
-              onLoad={sendAudioToStem}
-              data-testid="stem-modal-iframe"
-            />
-          </div>
-        </div>
+        <StemModal
+          audioUrl={audioUrl}
+          stemIframeRef={stemIframeRef}
+          onLoad={sendAudioToStem}
+          onClose={() => setStemModalOpen(false)}
+        />
       )}
 
       <div
@@ -1335,6 +1315,108 @@ function VisitSiteModal({ url, width = 100, onClose }: { url: string; width?: nu
           title="Visit Site"
           allow="autoplay; fullscreen"
           data-testid="visit-modal-iframe"
+        />
+      </div>
+    </div>
+  );
+}
+
+function StemModal({ audioUrl, stemIframeRef, onLoad, onClose }: { audioUrl: string; stemIframeRef: React.MutableRefObject<HTMLIFrameElement | null>; onLoad: () => void; onClose: () => void }) {
+  const [sheetY, setSheetY] = useState(5);
+  const [isDragging, setIsDragging] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const startY = useRef(0);
+  const startSheetY = useRef(0);
+  const sheetYRef = useRef(sheetY);
+  useEffect(() => { sheetYRef.current = sheetY; }, [sheetY]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setHasEntered(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+  }, [isClosing]);
+
+  useEffect(() => {
+    if (!isClosing) return;
+    const t = setTimeout(() => { onCloseRef.current(); }, LAUNCH_MODAL_SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [isClosing]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    setIsDragging(true);
+    startY.current = e.clientY;
+    startSheetY.current = sheetY;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [sheetY]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const deltaPercent = ((e.clientY - startY.current) / window.innerHeight) * 100;
+    const newY = Math.max(0, Math.min(85, startSheetY.current + deltaPercent));
+    setSheetY(newY);
+  }, [isDragging]);
+
+  const handlePointerUp = useCallback(() => {
+    setIsDragging(false);
+    if (sheetYRef.current >= VISIT_MODAL_CLOSE_THRESHOLD) setIsClosing(true);
+  }, []);
+
+  const transition = isDragging ? "none" : "transform 0.5s ease-out, top 0.3s ease";
+  const slideDown = !hasEntered || isClosing;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60" onClick={handleClose} data-testid="stem-modal-overlay">
+      <div
+        className="absolute left-1/2 bottom-0 bg-[#0a0a0f] rounded-t-xl flex flex-col"
+        style={{
+          width: "100%",
+          top: `${sheetY}%`,
+          marginLeft: "-50%",
+          transition,
+          transform: slideDown ? "translateY(100%)" : "translateY(0)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="stem-modal"
+      >
+        <div
+          className="flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing select-none flex-shrink-0"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          data-testid="stem-modal-handle"
+        >
+          <button
+            type="button"
+            onClick={handleClose}
+            className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0"
+            aria-label="Close Stem modal"
+            data-testid="button-stem-close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex-1 flex justify-center">
+            <GripHorizontal className="w-8 h-5 text-muted-foreground" />
+          </div>
+          <div className="w-8" />
+        </div>
+        <iframe
+          ref={stemIframeRef}
+          src="/stem.html"
+          className="flex-1 w-full border-0"
+          title="StemSplit - AI Audio Separation"
+          allow="autoplay; microphone"
+          onLoad={onLoad}
+          data-testid="stem-modal-iframe"
         />
       </div>
     </div>
