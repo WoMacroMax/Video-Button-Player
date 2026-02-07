@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Search, X, Link, Clock, Repeat } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Search, X, Link, Clock, Repeat, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +46,15 @@ interface SearchYTPlayer {
   cueVideoById: (videoId: string) => void;
   loadVideoById: (videoId: string) => void;
   destroy: () => void;
+}
+
+interface SearchResult {
+  videoId: string;
+  title: string;
+  thumbnail: string;
+  channel: string;
+  duration: string;
+  views: string;
 }
 
 const DEFAULT_VIDEO_ID = "Gai7-HR2YZk";
@@ -110,7 +119,10 @@ function formatTime(seconds: number): string {
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [iframeQuery, setIframeQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
 
   const [videoUrl, setVideoUrl] = useState(() => {
     const history = loadUrlHistory(SEARCH_URLS_KEY);
@@ -124,6 +136,7 @@ export default function SearchPage() {
     }
     return DEFAULT_VIDEO_ID;
   });
+  const [nowPlayingTitle, setNowPlayingTitle] = useState("");
   const [urlHistory, setUrlHistory] = useState<string[]>(() => loadUrlHistory(SEARCH_URLS_KEY));
 
   const [volume, setVolume] = useState([50]);
@@ -264,15 +277,40 @@ export default function SearchPage() {
     }
   }, [isPlaying, playerReady]);
 
-  const handleSearch = useCallback(() => {
+  const handleSearch = useCallback(async () => {
     const trimmed = searchQuery.trim();
-    setIframeQuery(trimmed);
+    if (!trimmed) return;
+    setIsSearching(true);
+    setSearchError("");
+    setHasSearched(true);
+    try {
+      const resp = await fetch(`/api/youtube-search?q=${encodeURIComponent(trimmed)}`);
+      if (!resp.ok) throw new Error("Search failed");
+      const data = await resp.json();
+      setSearchResults(data.results || []);
+    } catch {
+      setSearchError("Search failed. Please try again.");
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
   }, [searchQuery]);
+
+  const handleSelectResult = useCallback((result: SearchResult) => {
+    const url = `https://www.youtube.com/watch?v=${result.videoId}`;
+    setVideoUrl(url);
+    setVideoId(result.videoId);
+    setNowPlayingTitle(result.title);
+    setUrlHistory(saveUrlToHistory(SEARCH_URLS_KEY, url));
+  }, []);
 
   const handleVideoUrlChange = useCallback((value: string) => {
     setVideoUrl(value);
     const extractedId = extractVideoId(value);
-    if (extractedId) setVideoId(extractedId);
+    if (extractedId) {
+      setVideoId(extractedId);
+      setNowPlayingTitle("");
+    }
   }, []);
 
   const handleVideoUrlCommit = useCallback(() => {
@@ -282,7 +320,10 @@ export default function SearchPage() {
   const handleHistorySelect = useCallback((url: string) => {
     setVideoUrl(url);
     const extractedId = extractVideoId(url);
-    if (extractedId) setVideoId(extractedId);
+    if (extractedId) {
+      setVideoId(extractedId);
+      setNowPlayingTitle("");
+    }
     setUrlHistory(saveUrlToHistory(SEARCH_URLS_KEY, url));
   }, []);
 
@@ -312,21 +353,16 @@ export default function SearchPage() {
     }
   }, [duration]);
 
-  const iframeSrc =
-    iframeQuery === ""
-      ? "https://m.youtube.com"
-      : `https://m.youtube.com/results?search_query=${encodeURIComponent(iframeQuery)}`;
-
   return (
     <div className="flex flex-col w-full h-screen bg-background" data-testid="search-page">
       <div className="flex shrink-0 gap-2 p-3 bg-muted/50 border-b flex-wrap">
-        <input
+        <Input
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           placeholder="Search YouTube..."
-          className="flex-1 min-w-[150px] max-w-md px-3 py-2 rounded-md border bg-background text-sm"
+          className="flex-1 min-w-[150px] max-w-md"
           aria-label="Search YouTube"
           data-testid="search-input"
         />
@@ -334,24 +370,66 @@ export default function SearchPage() {
           size="sm"
           variant="default"
           onClick={handleSearch}
+          disabled={isSearching}
           data-testid="search-button"
         >
-          <Search className="w-4 h-4 mr-1" />
+          {isSearching ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Search className="w-4 h-4 mr-1" />}
           Search
         </Button>
       </div>
 
       <div className="flex flex-col lg:flex-row flex-1 min-h-0">
-        <div className="flex-1 min-h-0 lg:w-1/2">
-          <iframe
-            src={iframeSrc}
-            className="w-full h-full border-0"
-            title="YouTube Search (m.youtube)"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            data-testid="search-iframe"
-          />
+        <div className="flex-1 min-h-0 lg:w-1/2 overflow-y-auto p-3 space-y-2">
+          {isSearching && (
+            <div className="flex items-center justify-center py-12" data-testid="search-loading">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {searchError && (
+            <p className="text-sm text-destructive text-center py-8" data-testid="search-error">{searchError}</p>
+          )}
+
+          {!isSearching && !searchError && searchResults.length === 0 && hasSearched && (
+            <p className="text-sm text-muted-foreground text-center py-8" data-testid="search-no-results">No results found.</p>
+          )}
+
+          {!isSearching && !hasSearched && (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+              <Search className="w-10 h-10 opacity-30" />
+              <p className="text-sm">Search for YouTube videos above</p>
+            </div>
+          )}
+
+          {searchResults.map((result) => (
+            <div
+              key={result.videoId}
+              className={`flex gap-3 p-2 rounded-md cursor-pointer hover-elevate ${result.videoId === videoId ? "bg-primary/10 ring-1 ring-primary/30" : ""}`}
+              onClick={() => handleSelectResult(result)}
+              data-testid={`search-result-${result.videoId}`}
+            >
+              <div className="relative shrink-0 w-40 aspect-video rounded-md overflow-hidden bg-muted">
+                {result.thumbnail && (
+                  <img
+                    src={result.thumbnail}
+                    alt={result.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                )}
+                {result.duration && (
+                  <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded">
+                    {result.duration}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <p className="text-sm font-medium leading-tight line-clamp-2" data-testid="search-result-title">{result.title}</p>
+                <p className="text-xs text-muted-foreground">{result.channel}</p>
+                {result.views && <p className="text-xs text-muted-foreground">{result.views}</p>}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="flex flex-col lg:w-1/2 lg:min-h-0 border-t lg:border-t-0 lg:border-l">
@@ -371,6 +449,11 @@ export default function SearchPage() {
                 data-testid="search-video-url-input"
               />
             </div>
+            {nowPlayingTitle && (
+              <p className="text-xs text-muted-foreground truncate" title={nowPlayingTitle} data-testid="search-now-playing">
+                Now playing: {nowPlayingTitle}
+              </p>
+            )}
             {urlHistory.length > 0 && (
               <div className="space-y-1" data-testid="search-url-history">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -389,7 +472,7 @@ export default function SearchPage() {
                         {getLabelForUrl(url)}
                       </span>
                       <span
-                        className="shrink-0 visibility-hidden group-hover:visibility-visible rounded-sm p-0.5"
+                        className="shrink-0 invisible group-hover:visible rounded-sm p-0.5"
                         onClick={(e) => { e.stopPropagation(); handleRemoveUrl(url); }}
                         data-testid="search-history-remove"
                       >
