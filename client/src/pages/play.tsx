@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Music, Film, X, GripHorizontal } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Music, Film, X, GripHorizontal, ImageIcon } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -218,6 +218,8 @@ export default function PlayPage() {
   const [bgColor, setBgColor] = useState("#667eea");
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
+  const [displayMode, setDisplayMode] = useState<"visualizer" | "image">("visualizer");
+  const [imageUrl, setImageUrl] = useState("");
   const [stemModalOpen, setStemModalOpen] = useState(false);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
   const [visitModalWidth, setVisitModalWidth] = useState(100);
@@ -478,6 +480,45 @@ export default function PlayPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" />
+                Container Display
+              </Label>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  variant={displayMode === "visualizer" ? "default" : "outline"}
+                  onClick={() => setDisplayMode("visualizer")}
+                  data-testid="button-mode-visualizer"
+                >
+                  <Music className="w-4 h-4 mr-1" />
+                  Visualizer
+                </Button>
+                <Button
+                  size="sm"
+                  variant={displayMode === "image" ? "default" : "outline"}
+                  onClick={() => setDisplayMode("image")}
+                  data-testid="button-mode-image"
+                >
+                  <ImageIcon className="w-4 h-4 mr-1" />
+                  Image
+                </Button>
+              </div>
+              {displayMode === "image" && (
+                <div className="space-y-1">
+                  <Label htmlFor="image-url-input" className="text-xs text-muted-foreground">Image URL</Label>
+                  <Input
+                    id="image-url-input"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://example.com/cover.jpg"
+                    data-testid="input-image-url"
+                  />
                 </div>
               )}
             </div>
@@ -831,11 +872,21 @@ export default function PlayPage() {
               background: "linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.8) 100%)",
             }}
           >
-            <AudioVisualizer audioRef={audioRef} isPlaying={isPlaying} />
-
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 5 }}>
-              <Music className="w-12 h-12 md:w-16 md:h-16 text-white/30" />
-            </div>
+            {displayMode === "image" && imageUrl ? (
+              <img
+                src={imageUrl}
+                alt="Cover"
+                className="absolute inset-0 w-full h-full object-cover"
+                data-testid="img-cover"
+              />
+            ) : (
+              <>
+                <AudioVisualizer audioRef={audioRef} isPlaying={isPlaying} />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 5 }}>
+                  <Music className="w-12 h-12 md:w-16 md:h-16 text-white/30" />
+                </div>
+              </>
+            )}
 
             <div
               className="absolute z-20 pointer-events-auto"
