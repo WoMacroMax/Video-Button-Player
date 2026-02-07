@@ -571,7 +571,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-5 relative" style={{ backgroundColor: bgColor }}>
-      <div className="absolute top-4 left-4 flex flex-row items-center gap-2 z-10 flex-nowrap shrink-0">
+      <div className="absolute top-4 left-4 right-4 flex flex-row items-center gap-2 z-10 flex-wrap">
         <Sheet open={settingsOpen} onOpenChange={setSettingsOpen} modal={false}>
           <SheetTrigger asChild>
             <Button
