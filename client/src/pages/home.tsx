@@ -232,6 +232,7 @@ export default function Home() {
   const [containerVisible, setContainerVisible] = useState(true);
   const [stemModalOpen, setStemModalOpen] = useState(false);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const stemIframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
@@ -949,12 +950,11 @@ export default function Home() {
           size="icon"
           variant="ghost"
           className="text-white bg-sky-500 border-2 border-sky-400 border-b-sky-700 border-r-sky-700 rounded-lg shrink-0 shadow-[0_4px_0_0_#0369a1,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#0369a1,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-sky-400"
-          aria-label="Go to Search (YouTube)"
-          asChild
+          aria-label="Open Search (YouTube)"
+          onClick={() => setSearchModalOpen(true)}
+          data-testid="button-launch-search"
         >
-          <a href="/search" data-testid="button-launch-search">
-            <Search className="w-6 h-6" />
-          </a>
+          <Search className="w-6 h-6" />
         </Button>
         <Button
           size="icon"
@@ -1153,6 +1153,7 @@ export default function Home() {
       )}
 
       {visitModalOpen && <VisitSiteModal url={buttonUrl} width={visitModalWidth} onClose={() => setVisitModalOpen(false)} />}
+      {searchModalOpen && <VisitSiteModal url="/search" width={100} onClose={() => setSearchModalOpen(false)} />}
     </div>
   );
 }
