@@ -811,7 +811,7 @@ export default function PlayPage() {
                     <Label className="text-xs">Width (px)</Label>
                     <span className="text-xs text-muted-foreground">{iframe1Width[0]}</span>
                   </div>
-                  <Slider value={iframe1Width} onValueChange={setIframe1Width} min={100} max={1200} step={10} className="w-full" data-testid="slider-iframe1-width" />
+                  <Slider value={iframe1Width} onValueChange={setIframe1Width} min={100} max={2000} step={10} className="w-full" data-testid="slider-iframe1-width" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -866,7 +866,7 @@ export default function PlayPage() {
                     <Label className="text-xs">Width (px)</Label>
                     <span className="text-xs text-muted-foreground">{iframe2Width[0]}</span>
                   </div>
-                  <Slider value={iframe2Width} onValueChange={setIframe2Width} min={100} max={1200} step={10} className="w-full" data-testid="slider-iframe2-width" />
+                  <Slider value={iframe2Width} onValueChange={setIframe2Width} min={100} max={2000} step={10} className="w-full" data-testid="slider-iframe2-width" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
