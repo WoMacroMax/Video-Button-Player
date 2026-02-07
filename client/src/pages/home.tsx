@@ -1,19 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Film, Music, X, GripHorizontal } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Film, Music, Headphones, Search, X, GripHorizontal } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { DraggableResizablePanel } from "@/components/ui/draggable-resizable-panel";
 
 type SourceMode = "youtube" | "mp4";
 
@@ -145,6 +139,19 @@ function parseTime(timeStr: string): number {
   return 0;
 }
 
+/** Parse loop start/end string (milliseconds) to seconds. */
+function parseLoopMs(msStr: string): number {
+  if (!msStr.trim()) return 0;
+  const n = Number(msStr.replace(/\D/g, ""));
+  return isNaN(n) || n < 0 ? 0 : n / 1000;
+}
+
+/** Format seconds as milliseconds string for loop inputs. */
+function formatMs(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return "0";
+  return String(Math.round(seconds * 1000));
+}
+
 function ColorPickerField({ label, color, onChange, testId }: { label: string; color: string; onChange: (c: string) => void; testId: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -182,6 +189,11 @@ export default function Home() {
   const [title, setTitle] = useState("Click the Video Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
   const [buttonUrl, setButtonUrl] = useState("https://rodbiz.digiucard.com/portfolio");
+  const [buttonColor, setButtonColor] = useState("#667eea");
+  const [buttonPosX, setButtonPosX] = useState(50);
+  const [buttonPosY, setButtonPosY] = useState(50);
+  const [buttonScale, setButtonScale] = useState([100]);
+  const [visitModalWidth, setVisitModalWidth] = useState(100);
   const [youtubeHistory, setYoutubeHistory] = useState<string[]>(() => loadUrlHistory(YOUTUBE_URLS_KEY));
   const [mp4History, setMp4History] = useState<string[]>(() => loadUrlHistory(MP4_URLS_KEY));
   const [videoUrl, setVideoUrl] = useState(() => {
@@ -205,7 +217,7 @@ export default function Home() {
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isLooping, setIsLooping] = useState(true);
-  const [loopStart, setLoopStart] = useState("0:00");
+  const [loopStart, setLoopStart] = useState("0");
   const [loopEnd, setLoopEnd] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -213,11 +225,14 @@ export default function Home() {
   const [playerReady, setPlayerReady] = useState(false);
   const [shape, setShape] = useState<ContainerShape>("circle");
   const [scale, setScale] = useState([100]);
+  const [containerPosX, setContainerPosX] = useState(50);
+  const [containerPosY, setContainerPosY] = useState(50);
   const [bgColor, setBgColor] = useState("#667eea");
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
   const [stemModalOpen, setStemModalOpen] = useState(false);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const stemIframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const mp4VideoRef = useRef<HTMLVideoElement | null>(null);
@@ -246,12 +261,12 @@ export default function Home() {
 
   useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
   useEffect(() => {
-    const parsed = parseTime(loopStart);
+    const parsed = parseLoopMs(loopStart);
     loopStartRef.current = Math.min(parsed, durationRef.current > 0 ? durationRef.current : Infinity);
   }, [loopStart]);
   useEffect(() => {
     if (loopEnd) {
-      const parsed = parseTime(loopEnd);
+      const parsed = parseLoopMs(loopEnd);
       const clamped = durationRef.current > 0 ? Math.min(parsed, durationRef.current) : parsed;
       loopEndRef.current = clamped > loopStartRef.current ? clamped : 0;
     } else {
@@ -414,7 +429,7 @@ export default function Home() {
       if (typeof playerRef.current.setVolume === "function") playerRef.current.setVolume(volumeRef.current);
       if (isMuted && typeof playerRef.current.mute === "function") playerRef.current.mute();
       setLoopEnd("");
-      setLoopStart("0:00");
+      setLoopStart("0");
     }
   }, [videoId, playerReady, isMuted, sourceMode]);
 
@@ -451,7 +466,7 @@ export default function Home() {
     setDuration(0);
     setPlayerReady(false);
     setLoopEnd("");
-    setLoopStart("0:00");
+    setLoopStart("0");
     if (sourceMode === "youtube" && playerRef.current && typeof playerRef.current.loadVideoById === "function") {
       playerRef.current.loadVideoById(videoId);
       setPlayerReady(true);
@@ -477,7 +492,7 @@ export default function Home() {
     setDuration(0);
     setPlayerReady(false);
     setLoopEnd("");
-    setLoopStart("0:00");
+    setLoopStart("0");
   }, []);
   const handleMp4UrlCommit = useCallback(() => {
     if (mp4Url.trim()) setMp4History(saveUrlToHistory(MP4_URLS_KEY, mp4Url));
@@ -495,7 +510,7 @@ export default function Home() {
     setDuration(0);
     setPlayerReady(false);
     setLoopEnd("");
-    setLoopStart("0:00");
+    setLoopStart("0");
     setMp4History(saveUrlToHistory(MP4_URLS_KEY, url));
   }, []);
   const handleRemoveYoutubeUrl = useCallback((url: string) => {
@@ -507,23 +522,9 @@ export default function Home() {
   const handleSourceModeToggle = useCallback((checked: boolean) => {
     setSourceMode(checked ? "mp4" : "youtube");
   }, []);
-  const triggerUnmutePlay = useCallback(() => {
-    if (sourceMode === "mp4" && mp4VideoRef.current) {
-      mp4VideoRef.current.muted = false;
-      mp4VideoRef.current.play().catch(Boolean);
-    }
-    if (sourceMode === "youtube" && playerRef.current) {
-      if (typeof playerRef.current.unMute === "function") playerRef.current.unMute();
-      if (typeof playerRef.current.playVideo === "function") playerRef.current.playVideo();
-    }
-  }, [sourceMode]);
   const handleMuteToggle = useCallback((checked: boolean) => {
     setIsMuted(checked);
-    if (!checked && !isPlaying) {
-      setIsPlaying(true);
-      triggerUnmutePlay();
-    }
-  }, [isPlaying, triggerUnmutePlay]);
+  }, []);
   const handlePlayToggle = useCallback(() => { setIsPlaying((prev) => !prev); }, []);
   const handleLoopToggle = useCallback((checked: boolean) => { setIsLooping(checked); }, []);
   const handleProgressChange = useCallback((value: number[]) => { isSeeking.current = true; setProgress(value); }, []);
@@ -541,11 +542,11 @@ export default function Home() {
   }, []);
   const handleSetLoopStartToCurrent = useCallback(() => {
     const clamped = Math.min(currentTime, duration > 0 ? duration : currentTime);
-    setLoopStart(formatTime(clamped));
+    setLoopStart(formatMs(clamped));
   }, [currentTime, duration]);
   const handleSetLoopEndToCurrent = useCallback(() => {
     const clamped = Math.min(currentTime, duration > 0 ? duration : currentTime);
-    if (clamped > parseTime(loopStart)) setLoopEnd(formatTime(clamped));
+    if (clamped > parseLoopMs(loopStart)) setLoopEnd(formatMs(clamped));
   }, [currentTime, duration, loopStart]);
 
   const sendAudioToStem = useCallback(() => {
@@ -560,8 +561,8 @@ export default function Home() {
     if (stemModalOpen) sendAudioToStem();
   }, [stemModalOpen, sendAudioToStem]);
 
-  const loopStartSeconds = parseTime(loopStart);
-  const loopEndSeconds = loopEnd ? parseTime(loopEnd) : 0;
+  const loopStartSeconds = parseLoopMs(loopStart);
+  const loopEndSeconds = loopEnd ? parseLoopMs(loopEnd) : 0;
   const isLoopValid = !loopEnd || (loopEndSeconds > loopStartSeconds && loopEndSeconds <= duration);
 
   const currentShape = shapeStyles[shape];
@@ -569,27 +570,29 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-5 relative" style={{ backgroundColor: bgColor }}>
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute top-4 left-4 text-white"
-            aria-label="Open settings menu"
-            data-testid="button-menu"
+      <div className="absolute top-4 left-4 flex flex-row items-center gap-2 z-10 flex-nowrap shrink-0">
+        <Sheet open={settingsOpen} onOpenChange={setSettingsOpen} modal={false}>
+          <SheetTrigger asChild>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-white scale-[1.2]"
+              aria-label="Open settings menu"
+              data-testid="button-menu"
+            >
+              <Menu className="w-6 h-6" />
+            </Button>
+          </SheetTrigger>
+        <SheetContent
+          side="left"
+          className="!inset-0 !left-0 !top-0 !right-0 !bottom-0 !h-full !w-full !max-w-none !border-0 !p-0 !bg-transparent !shadow-none [&>button]:hidden"
+        >
+          <DraggableResizablePanel
+            onClose={() => setSettingsOpen(false)}
+            title="Settings"
+            description="Customize video playback and button appearance"
           >
-            <Menu className="w-6 h-6" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-80 flex flex-col h-full overflow-hidden">
-          <SheetHeader className="flex-shrink-0">
-            <SheetTitle>Settings</SheetTitle>
-            <SheetDescription>
-              Customize video playback and button appearance
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="flex flex-col gap-6 mt-6 flex-1 overflow-y-auto pb-6">
+          <div className="flex flex-col gap-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium flex items-center gap-2">
@@ -716,6 +719,49 @@ export default function Home() {
               />
             </div>
 
+            <div className="space-y-4 p-3 bg-muted rounded-md">
+              <Label className="text-sm font-medium">Launch-site button</Label>
+              <ColorPickerField label="Color" color={buttonColor} onChange={setButtonColor} testId="color-launch-button" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">X position (%)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={buttonPosX}
+                    onChange={(e) => setButtonPosX(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                    data-testid="input-button-pos-x"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Y position (%)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={buttonPosY}
+                    onChange={(e) => setButtonPosY(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                    data-testid="input-button-pos-y"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Scale</Label>
+                  <span className="text-xs text-muted-foreground">{buttonScale[0]}%</span>
+                </div>
+                <Slider value={buttonScale} onValueChange={setButtonScale} min={50} max={200} step={5} className="w-full" data-testid="slider-button-scale" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Launch modal width (%)</Label>
+                  <span className="text-xs text-muted-foreground">{visitModalWidth}%</span>
+                </div>
+                <Slider value={[visitModalWidth]} onValueChange={(v) => setVisitModalWidth(v[0])} min={50} max={100} step={5} className="w-full" data-testid="slider-visit-modal-width" />
+              </div>
+            </div>
+
             <div className="space-y-3">
               <Label className="text-sm font-medium flex items-center gap-2">
                 <Maximize2 className="w-4 h-4" />
@@ -737,15 +783,29 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <Maximize2 className="w-4 h-4" />
-                  Scale
-                </Label>
-                <span className="text-sm text-muted-foreground">{scale[0]}%</span>
+            <div className="space-y-4 p-3 bg-muted rounded-md">
+              <Label className="text-sm font-medium">Position & scale (entire view space)</Label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Scale</Label>
+                  <span className="text-xs text-muted-foreground">{scale[0]}%</span>
+                </div>
+                <Slider value={scale} onValueChange={setScale} min={50} max={200} step={5} className="w-full" data-testid="slider-scale" />
               </div>
-              <Slider value={scale} onValueChange={setScale} min={50} max={200} step={5} className="w-full" data-testid="slider-scale" />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">X position (%)</Label>
+                  <span className="text-xs text-muted-foreground">{containerPosX}</span>
+                </div>
+                <Slider value={[containerPosX]} onValueChange={(v) => setContainerPosX(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-container-pos-x" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Y position (%)</Label>
+                  <span className="text-xs text-muted-foreground">{containerPosY}</span>
+                </div>
+                <Slider value={[containerPosY]} onValueChange={(v) => setContainerPosY(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-container-pos-y" />
+              </div>
             </div>
 
             <div className="space-y-4 p-3 bg-muted rounded-md">
@@ -821,7 +881,7 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">Loop Range</Label>
                     <span className="text-sm text-muted-foreground">
-                      {formatTime(loopStartSeconds)} - {loopEnd ? formatTime(loopEndSeconds) : formatTime(duration)}
+                      {loopStart} - {loopEnd || formatMs(duration)} ms
                     </span>
                   </div>
                   <Slider
@@ -831,8 +891,8 @@ export default function Home() {
                     ]}
                     onValueChange={(values) => {
                       if (duration > 0) {
-                        setLoopStart(formatTime((values[0] / 100) * duration));
-                        if (values[1] < 100) { setLoopEnd(formatTime((values[1] / 100) * duration)); }
+                        setLoopStart(formatMs((values[0] / 100) * duration));
+                        if (values[1] < 100) { setLoopEnd(formatMs((values[1] / 100) * duration)); }
                         else { setLoopEnd(""); }
                       }
                     }}
@@ -845,52 +905,84 @@ export default function Home() {
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="loop-start" className="text-sm font-medium whitespace-nowrap">Start</Label>
                     <div className="flex items-center gap-2">
-                      <Input id="loop-start" value={loopStart} onChange={(e) => setLoopStart(e.target.value)} placeholder="0:00" className="w-20 text-center" data-testid="input-loop-start" />
+                      <Input id="loop-start" value={loopStart} onChange={(e) => setLoopStart(e.target.value)} placeholder="0" className="w-24 text-center" data-testid="input-loop-start" />
                       <Button size="sm" variant="outline" onClick={handleSetLoopStartToCurrent} data-testid="button-set-loop-start">Set</Button>
+                      <Button size="sm" variant="secondary" className="text-muted-foreground" onClick={() => setLoopStart("0")} data-testid="button-clear-loop-start">Clear</Button>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="loop-end" className="text-sm font-medium whitespace-nowrap">End</Label>
                     <div className="flex items-center gap-2">
-                      <Input id="loop-end" value={loopEnd} onChange={(e) => setLoopEnd(e.target.value)} placeholder="End" className={`w-20 text-center ${!isLoopValid ? "border-destructive" : ""}`} data-testid="input-loop-end" />
+                      <Input id="loop-end" value={loopEnd} onChange={(e) => setLoopEnd(e.target.value)} placeholder="e.g. 24000" className={`w-24 text-center ${!isLoopValid ? "border-destructive" : ""}`} data-testid="input-loop-end" />
                       <Button size="sm" variant="outline" onClick={handleSetLoopEndToCurrent} data-testid="button-set-loop-end">Set</Button>
+                      <Button size="sm" variant="secondary" className="text-muted-foreground" onClick={() => setLoopEnd("")} data-testid="button-clear-loop-end">Clear</Button>
                     </div>
                   </div>
                   {!isLoopValid && <p className="text-xs text-destructive">End time must be after start time</p>}
-                  <p className="text-xs text-muted-foreground">Format: minutes:seconds (e.g., 1:30)</p>
+                  <p className="text-xs text-muted-foreground">Enter time in milliseconds (e.g., 20000 for 20 seconds)</p>
                 </div>
               </div>
             )}
           </div>
+          </DraggableResizablePanel>
         </SheetContent>
       </Sheet>
+        <div className="flex items-center gap-2 rounded-md bg-black/30 px-2 py-1.5 text-white shrink-0">
+          <Label htmlFor="visibility-toggle-page" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+            {containerVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            Container Visible
+          </Label>
+          <Switch id="visibility-toggle-page" checked={containerVisible} onCheckedChange={setContainerVisible} data-testid="switch-visibility-page" />
+        </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-white bg-amber-500 border-2 border-amber-400 border-b-amber-700 border-r-amber-700 rounded-lg shrink-0 shadow-[0_4px_0_0_#b45309,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#b45309,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-amber-400"
+          aria-label="Go to Play (audio) page"
+          asChild
+        >
+          <a href="/play" data-testid="button-launch-play">
+            <Headphones className="w-6 h-6" />
+          </a>
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-white bg-sky-500 border-2 border-sky-400 border-b-sky-700 border-r-sky-700 rounded-lg shrink-0 shadow-[0_4px_0_0_#0369a1,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#0369a1,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-sky-400"
+          aria-label="Go to Search (YouTube)"
+          asChild
+        >
+          <a href="/search" data-testid="button-launch-search">
+            <Search className="w-6 h-6" />
+          </a>
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="bg-red-500 text-white border-2 border-red-400 border-b-red-700 border-r-red-700 rounded-lg shrink-0 shadow-[0_4px_0_0_#b91c1c,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#b91c1c,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-red-400"
+          aria-label="Open Stem Separator"
+          onClick={() => {
+            setIsPlaying(false);
+            if (sourceMode === "youtube" && playerRef.current && typeof playerRef.current.pauseVideo === "function") playerRef.current.pauseVideo();
+            if (sourceMode === "mp4" && mp4VideoRef.current) mp4VideoRef.current.pause();
+            setStemModalOpen(true);
+          }}
+          data-testid="button-stem"
+        >
+          <Music className="w-6 h-6" />
+        </Button>
 
-      <Button
-        size="icon"
-        variant="ghost"
-        className="absolute top-14 left-4 bg-red-600 text-white"
-        aria-label="Open Stem Separator"
-        onClick={() => {
-          setIsPlaying(false);
-          if (sourceMode === "youtube" && playerRef.current && typeof playerRef.current.pauseVideo === "function") playerRef.current.pauseVideo();
-          if (sourceMode === "mp4" && mp4VideoRef.current) mp4VideoRef.current.pause();
-          setStemModalOpen(true);
-        }}
-        data-testid="button-stem"
-      >
-        <Music className="w-6 h-6" />
-      </Button>
-
-      <Button
-        size="icon"
-        variant="ghost"
-        className="absolute top-24 left-4 text-white bg-white/20"
-        aria-label={isPlaying ? "Stop" : "Play"}
-        onClick={handlePlayToggle}
-        data-testid="button-floating-play"
-      >
-        {isPlaying ? <Square className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-      </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-white bg-emerald-600 border-2 border-emerald-500 border-b-emerald-800 border-r-emerald-800 rounded-lg shrink-0 shadow-[0_4px_0_0_#065f46,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#065f46,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-emerald-500"
+          aria-label={isPlaying ? "Stop" : "Play"}
+          onClick={handlePlayToggle}
+          data-testid="button-floating-play"
+        >
+          {isPlaying ? <Square className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+        </Button>
+      </div>
 
       {stemModalOpen && (
         <div
@@ -921,19 +1013,30 @@ export default function Home() {
         </div>
       )}
 
-      <div className="text-center" style={{ display: containerVisible ? "block" : "none" }}>
-        <h1
-          className="text-white text-2xl md:text-3xl font-semibold mb-6 md:mb-8"
-          style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
-          data-testid="text-title"
-        >
-          {title}
-        </h1>
+      <div
+        className="grid grid-rows-[auto_1fr] w-full min-h-screen gap-0 text-center"
+        style={{ display: containerVisible ? "grid" : "none" }}
+      >
+        <div className="flex items-center justify-center py-4 md:py-6 shrink-0">
+          <h1
+            className="text-white text-2xl md:text-3xl font-semibold"
+            style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
+            data-testid="text-title"
+          >
+            {title}
+          </h1>
+        </div>
 
-        <button
-          type="button"
-          className={`relative ${currentShape.widthClass} ${currentShape.heightClass} mx-auto cursor-pointer bg-transparent border-none p-0 block`}
-          style={{ transform: `scale(${scaleFactor})`, transformOrigin: "center center" }}
+        <div className="relative w-full min-h-0 flex items-stretch justify-stretch">
+          <button
+            type="button"
+            className={`absolute cursor-pointer bg-transparent border-none p-0 ${currentShape.widthClass} ${currentShape.heightClass}`}
+            style={{
+              left: `${containerPosX}%`,
+              top: `${containerPosY}%`,
+              transform: `translate(-50%, -50%) scale(${scaleFactor})`,
+              transformOrigin: "center center",
+            }}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           onMouseEnter={() => setIsHovered(true)}
@@ -979,8 +1082,8 @@ export default function Home() {
               <div
                 role="button"
                 tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } } }}
+                onClick={(e) => { e.stopPropagation(); setIsMuted((m) => !m); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); } }}
                 className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
                 aria-label={isMuted ? "Unmute video" : "Mute video"}
                 data-testid="button-mute-overlay"
@@ -990,7 +1093,7 @@ export default function Home() {
             </div>
 
             <div
-              className="absolute inset-0 z-10 flex items-center justify-center transition-all duration-300 pointer-events-none"
+              className="absolute inset-0 z-10 transition-all duration-300 pointer-events-none"
               style={{
                 background: isHovered
                   ? "radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 70%)"
@@ -998,8 +1101,15 @@ export default function Home() {
               }}
             >
               <div
-                className="flex items-center gap-2 bg-white/90 text-[#667eea] px-4 py-2 md:px-6 md:py-3 rounded-full font-semibold text-xs md:text-sm transition-opacity duration-300"
-                style={{ opacity: isHovered ? 1 : 0, visibility: isHovered ? "visible" : "hidden" }}
+                className="absolute flex items-center gap-2 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-semibold text-xs md:text-sm transition-opacity duration-300"
+                style={{
+                  left: `${buttonPosX}%`,
+                  top: `${buttonPosY}%`,
+                  transform: `translate(-50%, -50%) scale(${buttonScale[0] / 100})`,
+                  backgroundColor: buttonColor,
+                  opacity: isHovered ? 1 : 0,
+                  visibility: isHovered ? "visible" : "hidden",
+                }}
                 data-testid="text-click-indicator"
               >
                 <span>{buttonLabel}</span>
@@ -1008,6 +1118,7 @@ export default function Home() {
             </div>
           </div>
         </button>
+        </div>
       </div>
 
       {!containerVisible && (
@@ -1021,7 +1132,7 @@ export default function Home() {
           duration={duration}
           volume={volume}
           onPlayToggle={handlePlayToggle}
-          onMuteToggle={() => { const willUnmute = isMuted; setIsMuted(!isMuted); if (willUnmute && !isPlaying) { setIsPlaying(true); triggerUnmutePlay(); } }}
+          onMuteToggle={() => setIsMuted((m) => !m)}
           onVolumeChange={setVolume}
           onSeek={(time) => {
             if (sourceMode === "youtube" && playerRef.current) {
@@ -1033,11 +1144,15 @@ export default function Home() {
           }}
           onSetLoopStart={handleSetLoopStartToCurrent}
           onSetLoopEnd={handleSetLoopEndToCurrent}
+          onLoopStartChange={(s) => setLoopStart(formatMs(s))}
+          onLoopEndChange={(s) => setLoopEnd(formatMs(s))}
+          onClearLoopStart={() => setLoopStart("0")}
+          onClearLoopEnd={() => setLoopEnd("")}
           title={title}
         />
       )}
 
-      {visitModalOpen && <VisitSiteModal url={buttonUrl} onClose={() => setVisitModalOpen(false)} />}
+      {visitModalOpen && <VisitSiteModal url={buttonUrl} width={visitModalWidth} onClose={() => setVisitModalOpen(false)} />}
     </div>
   );
 }
@@ -1057,6 +1172,10 @@ function HiddenModeControls({
   onSeek,
   onSetLoopStart,
   onSetLoopEnd,
+  onLoopStartChange,
+  onLoopEndChange,
+  onClearLoopStart,
+  onClearLoopEnd,
   title,
 }: {
   isPlaying: boolean;
@@ -1073,14 +1192,44 @@ function HiddenModeControls({
   onSeek: (time: number) => void;
   onSetLoopStart: () => void;
   onSetLoopEnd: () => void;
+  onLoopStartChange: (seconds: number) => void;
+  onLoopEndChange: (seconds: number) => void;
+  onClearLoopStart: () => void;
+  onClearLoopEnd: () => void;
   title: string;
 }) {
+  const scrubBarRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef<{ handle: "start" | "end"; pointerId: number } | null>(null);
+
   const rangeStart = loopStartSeconds;
   const rangeEnd = loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration;
 
   const scrubPercent = duration > 0 ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0;
   const loopStartPercent = duration > 0 ? (loopStartSeconds / duration) * 100 : 0;
   const loopEndPercent = duration > 0 ? ((loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration) / duration) * 100 : 100;
+
+  const handleLoopHandlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!scrubBarRef.current || !duration || !draggingRef.current) return;
+      const rect = scrubBarRef.current.getBoundingClientRect();
+      const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      const seconds = (percent / 100) * duration;
+      if (draggingRef.current.handle === "start") {
+        const endSec = loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration;
+        onLoopStartChange(Math.min(seconds, Math.max(0, endSec - 0.01)));
+      } else {
+        onLoopEndChange(Math.max(seconds, loopStartSeconds + 0.01));
+      }
+    },
+    [duration, loopStartSeconds, loopEndSeconds, onLoopStartChange, onLoopEndChange]
+  );
+
+  const handleLoopHandlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (draggingRef.current?.pointerId === e.pointerId) {
+      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+      draggingRef.current = null;
+    }
+  }, []);
 
   const handleScrubChange = useCallback((value: number[]) => {
     if (duration > 0) {
@@ -1115,7 +1264,7 @@ function HiddenModeControls({
             <span className="text-white/70 text-xs font-medium">{formatTime(currentTime)}</span>
             <span className="text-white/70 text-xs font-medium">{formatTime(duration)}</span>
           </div>
-          <div className="relative w-full">
+          <div className="relative w-full" ref={scrubBarRef}>
             {isLooping && duration > 0 && (
               <div
                 className="absolute top-1/2 -translate-y-1/2 h-2 bg-white/20 rounded-full pointer-events-none z-0"
@@ -1125,8 +1274,42 @@ function HiddenModeControls({
             )}
             {isLooping && duration > 0 && (
               <>
-                <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-green-400 pointer-events-none z-10" style={{ left: `${loopStartPercent}%` }} data-testid="loop-start-marker" />
-                <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-red-400 pointer-events-none z-10" style={{ left: `${loopEndPercent}%` }} data-testid="loop-end-marker" />
+                <div
+                  role="slider"
+                  aria-valuenow={loopStartSeconds}
+                  aria-valuemin={0}
+                  aria-valuemax={duration}
+                  aria-label="Loop start"
+                  tabIndex={0}
+                  className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-1/2 w-3 h-8 rounded-full bg-green-400 border-2 border-green-200 shadow-md cursor-grab active:cursor-grabbing z-30 touch-none select-none"
+                  style={{ left: `${loopStartPercent}%` }}
+                  data-testid="loop-start-marker"
+                  onPointerDown={(e) => {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    draggingRef.current = { handle: "start", pointerId: e.pointerId };
+                  }}
+                  onPointerMove={handleLoopHandlePointerMove}
+                  onPointerUp={handleLoopHandlePointerUp}
+                  onPointerCancel={handleLoopHandlePointerUp}
+                />
+                <div
+                  role="slider"
+                  aria-valuenow={loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration}
+                  aria-valuemin={loopStartSeconds}
+                  aria-valuemax={duration}
+                  aria-label="Loop end"
+                  tabIndex={0}
+                  className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-1/2 w-3 h-8 rounded-full bg-red-400 border-2 border-red-200 shadow-md cursor-grab active:cursor-grabbing z-30 touch-none select-none"
+                  style={{ left: `${loopEndPercent}%` }}
+                  data-testid="loop-end-marker"
+                  onPointerDown={(e) => {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    draggingRef.current = { handle: "end", pointerId: e.pointerId };
+                  }}
+                  onPointerMove={handleLoopHandlePointerMove}
+                  onPointerUp={handleLoopHandlePointerUp}
+                  onPointerCancel={handleLoopHandlePointerUp}
+                />
               </>
             )}
             <Slider
@@ -1152,7 +1335,7 @@ function HiddenModeControls({
             size="icon"
             variant="ghost"
             onClick={handleSkipBack}
-            className="text-white/80"
+            className="text-white bg-blue-500 border-2 border-blue-400 border-b-blue-700 border-r-blue-700 rounded-lg shadow-[0_4px_0_0_#1d4ed8,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#1d4ed8,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-blue-400"
             aria-label="Skip back 5 seconds"
             data-testid="button-hidden-skip-back"
           >
@@ -1162,7 +1345,7 @@ function HiddenModeControls({
             size="icon"
             variant="ghost"
             onClick={onPlayToggle}
-            className="text-white bg-white/20"
+            className="text-white bg-emerald-500 border-2 border-emerald-400 border-b-emerald-700 border-r-emerald-700 rounded-lg shadow-[0_4px_0_0_#047857,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#047857,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-emerald-400"
             aria-label={isPlaying ? "Pause" : "Play"}
             data-testid="button-hidden-play"
           >
@@ -1172,57 +1355,103 @@ function HiddenModeControls({
             size="icon"
             variant="ghost"
             onClick={handleSkipForward}
-            className="text-white/80"
+            className="text-white bg-amber-500 border-2 border-amber-400 border-b-amber-700 border-r-amber-700 rounded-lg shadow-[0_4px_0_0_#b45309,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#b45309,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-amber-400"
             aria-label="Skip forward 5 seconds"
             data-testid="button-hidden-skip-forward"
           >
             <SkipForward className="w-5 h-5" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onMuteToggle}
-            className="text-white/80"
-            aria-label={isMuted ? "Unmute" : "Mute"}
-            data-testid="button-hidden-mute"
-          >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </Button>
         </div>
 
-        {isLooping && (
-          <div className="flex items-center justify-center gap-2">
-            <Repeat className="w-3 h-3 text-white/50" />
-            <Button size="sm" variant="ghost" onClick={onSetLoopStart} className="text-white/70 text-xs" data-testid="button-hidden-set-loop-start">
-              Set Start
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onSetLoopEnd} className="text-white/70 text-xs" data-testid="button-hidden-set-loop-end">
-              Set End
+        <div className="grid grid-cols-2 gap-4 items-start w-full">
+          <div className="flex flex-col items-center gap-2 justify-self-start">
+            {isLooping && (
+              <>
+                <Repeat className="w-3 h-3 text-white/50" />
+                <div className="grid grid-cols-2 gap-2 w-full max-w-[200px]">
+                  <Button size="sm" variant="ghost" onClick={onSetLoopStart} className="text-white/70 text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #3b82f6, 1px 1px 0 rgba(59,130,246,0.5)" }} data-testid="button-hidden-set-loop-start">
+                    Set Start
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={onClearLoopStart} className="text-muted-foreground text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #6b7280, 1px 1px 0 rgba(107,114,128,0.5)" }} data-testid="button-hidden-clear-loop-start">
+                    Clear
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={onSetLoopEnd} className="text-white/70 text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #10b981, 1px 1px 0 rgba(16,185,129,0.5)" }} data-testid="button-hidden-set-loop-end">
+                    Set End
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={onClearLoopEnd} className="text-muted-foreground text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #f59e0b, 1px 1px 0 rgba(245,158,11,0.5)" }} data-testid="button-hidden-clear-loop-end">
+                    Clear
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex flex-col items-center gap-2 justify-self-end" data-testid="volume-control-vertical">
+            <div className="flex items-center justify-between w-full max-w-[48px]">
+              <span className="text-white/60 text-xs">{volume[0]}%</span>
+            </div>
+            <div className="h-28 flex flex-col items-center">
+              <Slider
+                orientation="vertical"
+                variant="volume"
+                value={volume}
+                onValueChange={onVolumeChange}
+                max={100}
+                step={1}
+                className="h-full"
+                data-testid="slider-hidden-volume"
+              />
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onMuteToggle}
+              className="text-white bg-white/20 hover:bg-white/30 rounded-full w-9 h-9 border border-white/30"
+              aria-label={isMuted ? "Unmute" : "Mute"}
+              data-testid="button-hidden-mute"
+            >
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </Button>
           </div>
-        )}
-
-        <div className="flex items-center gap-3">
-          <Slider
-            value={volume}
-            onValueChange={onVolumeChange}
-            max={100}
-            step={1}
-            className="w-full"
-            data-testid="slider-hidden-volume"
-          />
-          <span className="text-white/60 text-xs w-8 text-right flex-shrink-0">{volume[0]}%</span>
         </div>
+
       </div>
     </div>
   );
 }
 
-function VisitSiteModal({ url, onClose }: { url: string; onClose: () => void }) {
+const LAUNCH_MODAL_SLIDE_MS = 500;
+const VISIT_MODAL_CLOSE_THRESHOLD = 70; // sheet top % - when released past this, close and release
+
+function VisitSiteModal({ url, width = 100, onClose }: { url: string; width?: number; onClose: () => void }) {
   const [sheetY, setSheetY] = useState(10);
   const [isDragging, setIsDragging] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const startY = useRef(0);
   const startSheetY = useRef(0);
+  const sheetYRef = useRef(sheetY);
+  useEffect(() => { sheetYRef.current = sheetY; }, [sheetY]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setHasEntered(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+  }, [isClosing]);
+
+  useEffect(() => {
+    if (!isClosing) return;
+    const t = setTimeout(() => { onCloseRef.current(); }, LAUNCH_MODAL_SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [isClosing]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     setIsDragging(true);
@@ -1240,15 +1469,26 @@ function VisitSiteModal({ url, onClose }: { url: string; onClose: () => void }) 
 
   const handlePointerUp = useCallback(() => {
     setIsDragging(false);
+    if (sheetYRef.current >= VISIT_MODAL_CLOSE_THRESHOLD) setIsClosing(true);
   }, []);
 
+  const transition = isDragging ? "none" : "transform 0.5s ease-out, top 0.3s ease";
+  const slideDown = !hasEntered || isClosing;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60" onClick={onClose} data-testid="visit-modal-overlay">
+    <div className="fixed inset-0 z-50 bg-black/60" onClick={handleClose} data-testid="visit-modal-overlay" aria-label="Launch modal">
       <div
-        className="absolute left-0 right-0 bottom-0 bg-background rounded-t-xl flex flex-col"
-        style={{ top: `${sheetY}%`, transition: isDragging ? "none" : "top 0.3s ease" }}
+        className="absolute left-1/2 bottom-0 bg-background rounded-t-xl flex flex-col"
+        style={{
+          width: `${width}%`,
+          top: `${sheetY}%`,
+          marginLeft: `${-width / 2}%`,
+          transition,
+          transform: slideDown ? "translateY(100%)" : "translateY(0)",
+        }}
         onClick={(e) => e.stopPropagation()}
         data-testid="visit-modal"
+        data-modal="launch-modal"
       >
         <div
           className="flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing select-none flex-shrink-0"
@@ -1259,7 +1499,7 @@ function VisitSiteModal({ url, onClose }: { url: string; onClose: () => void }) 
         >
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0"
             aria-label="Close"
             data-testid="button-visit-modal-close"

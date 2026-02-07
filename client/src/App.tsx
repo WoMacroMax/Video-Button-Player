@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import PlayPage from "@/pages/play";
 import StemPage from "@/pages/stem";
+import SearchPage from "@/pages/search";
 
 function Router() {
   return (
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/view" component={Home} />
       <Route path="/play" component={PlayPage} />
       <Route path="/stem" component={StemPage} />
+      <Route path="/search" component={SearchPage} />
       <Route path="/">
         <Redirect to="/view" />
       </Route>
