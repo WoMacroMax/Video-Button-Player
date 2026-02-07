@@ -1017,9 +1017,9 @@ export default function Home() {
         className="grid grid-rows-[auto_1fr] w-full min-h-screen gap-0 text-center"
         style={{ display: containerVisible ? "grid" : "none" }}
       >
-        <div className="flex items-center justify-center py-4 md:py-6 shrink-0">
+        <div className="flex items-center justify-center pt-24 sm:pt-16 md:pt-6 pb-4 md:pb-6 shrink-0">
           <h1
-            className="text-white text-2xl md:text-3xl font-semibold"
+            className="text-white text-xl sm:text-2xl md:text-3xl font-semibold"
             style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
             data-testid="text-title"
           >
