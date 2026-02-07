@@ -434,7 +434,7 @@ export default function SearchPage() {
   }, [duration]);
 
   return (
-    <div className="flex flex-col w-full h-screen bg-background" data-testid="search-page">
+    <div className="flex flex-col w-full min-h-screen lg:h-screen bg-background" data-testid="search-page">
       <div className="flex shrink-0 gap-2 p-3 bg-muted/50 border-b flex-wrap">
         <Input
           type="search"
@@ -478,8 +478,8 @@ export default function SearchPage() {
         </Button>
       </div>
 
-      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
-        <div className="flex-1 min-h-0 lg:w-1/2 overflow-y-auto p-3 space-y-2">
+      <div className="flex flex-col lg:flex-row flex-1 lg:min-h-0 lg:overflow-hidden">
+        <div className="lg:flex-1 lg:min-h-0 lg:w-1/2 lg:overflow-y-auto p-3 space-y-2">
           {isSearching && (
             <div className="flex items-center justify-center py-12" data-testid="search-loading">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -508,7 +508,7 @@ export default function SearchPage() {
               onClick={() => handleSelectResult(result)}
               data-testid={`search-result-${result.videoId}`}
             >
-              <div className="relative shrink-0 w-40 aspect-video rounded-md overflow-hidden bg-muted">
+              <div className="relative shrink-0 w-28 sm:w-40 aspect-video rounded-md overflow-hidden bg-muted">
                 {result.thumbnail && (
                   <img
                     src={result.thumbnail}
@@ -585,7 +585,7 @@ export default function SearchPage() {
           )}
         </div>
 
-        <div className="flex flex-col lg:w-1/2 lg:min-h-0 border-t lg:border-t-0 lg:border-l">
+        <div className="flex flex-col shrink-0 lg:shrink lg:w-1/2 lg:min-h-0 border-t lg:border-t-0 lg:border-l">
           <div className="p-3 border-b space-y-2">
             <div className="space-y-1">
               <Label className="text-xs font-medium flex items-center gap-1">
