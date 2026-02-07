@@ -418,7 +418,7 @@ export default function PlayPage() {
     <div className="min-h-screen flex items-center justify-center p-5 relative" style={{ backgroundColor: bgColor }}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" crossOrigin="anonymous" />
 
-      <div className="absolute top-4 left-4 flex flex-row items-center gap-2 z-10 flex-nowrap shrink-0">
+      <div className="absolute top-4 left-4 right-4 flex flex-row items-center gap-2 z-10 flex-wrap">
         <Sheet open={settingsOpen} onOpenChange={setSettingsOpen} modal={false}>
           <SheetTrigger asChild>
             <Button
@@ -832,7 +832,7 @@ export default function PlayPage() {
         className="grid grid-rows-[auto_1fr] w-full min-h-screen gap-0 text-center"
         style={{ display: containerVisible ? "grid" : "none" }}
       >
-        <div className="flex items-center justify-center py-4 md:py-6 shrink-0">
+        <div className="flex items-center justify-center pt-24 sm:pt-16 md:pt-6 pb-0 shrink-0">
           <h1
             className="text-white text-2xl md:text-3xl font-semibold"
             style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
