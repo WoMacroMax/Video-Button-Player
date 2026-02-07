@@ -1,9 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Search, X, Link, Clock, Repeat, Loader2 } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Search, X, Link, Clock, Repeat, Loader2, ListPlus, Trash2, ListMusic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { PlaylistItem } from "@shared/schema";
 
 declare global {
   interface Window {
@@ -155,6 +159,73 @@ export default function SearchPage() {
   const isSeeking = useRef(false);
   const volumeRef = useRef(50);
   const isLoopingRef = useRef(isLooping);
+
+  const { toast } = useToast();
+
+  const { data: playlist = [], isLoading: playlistLoading } = useQuery<PlaylistItem[]>({
+    queryKey: ["/api/playlist"],
+  });
+
+  const addToPlaylist = useMutation({
+    mutationFn: async (result: SearchResult) => {
+      const resp = await apiRequest("POST", "/api/playlist", {
+        videoId: result.videoId,
+        title: result.title,
+        thumbnail: result.thumbnail,
+        channel: result.channel,
+        duration: result.duration,
+      });
+      return resp.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/playlist"] });
+      toast({ title: "Saved to playlist" });
+    },
+    onError: (err: Error) => {
+      if (err.message.includes("409")) {
+        toast({ title: "Already in playlist", variant: "destructive" });
+      } else {
+        toast({ title: "Failed to save", variant: "destructive" });
+      }
+    },
+  });
+
+  const removeFromPlaylist = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/playlist/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/playlist"] });
+      toast({ title: "Removed from playlist" });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove", variant: "destructive" });
+    },
+  });
+
+  const handleSaveToPlaylist = useCallback(() => {
+    const currentResult = searchResults.find((r) => r.videoId === videoId);
+    if (currentResult) {
+      addToPlaylist.mutate(currentResult);
+    } else if (videoId) {
+      addToPlaylist.mutate({
+        videoId,
+        title: nowPlayingTitle || `Video ${videoId}`,
+        thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        channel: "",
+        duration: "",
+        views: "",
+      });
+    }
+  }, [searchResults, videoId, nowPlayingTitle, addToPlaylist]);
+
+  const handlePlayFromPlaylist = useCallback((item: PlaylistItem) => {
+    const url = `https://www.youtube.com/watch?v=${item.videoId}`;
+    setVideoUrl(url);
+    setVideoId(item.videoId);
+    setNowPlayingTitle(item.title);
+    setUrlHistory(saveUrlToHistory(SEARCH_URLS_KEY, url));
+  }, []);
 
   useEffect(() => {
     if (videoUrl.trim() && urlHistory.length === 0) {
@@ -376,6 +447,16 @@ export default function SearchPage() {
           {isSearching ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Search className="w-4 h-4 mr-1" />}
           Search
         </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleSaveToPlaylist}
+          disabled={!videoId || addToPlaylist.isPending}
+          data-testid="save-to-playlist-button"
+        >
+          {addToPlaylist.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ListPlus className="w-4 h-4 mr-1" />}
+          Save
+        </Button>
       </div>
 
       <div className="flex flex-col lg:flex-row flex-1 min-h-0">
@@ -430,6 +511,59 @@ export default function SearchPage() {
               </div>
             </div>
           ))}
+
+          {playlist.length > 0 && (
+            <div className="mt-4 pt-4 border-t space-y-2" data-testid="playlist-section">
+              <Label className="text-xs font-medium flex items-center gap-1 text-muted-foreground">
+                <ListMusic className="w-3 h-3" />
+                Playlist ({playlist.length})
+              </Label>
+              {playlist.map((item) => (
+                <div
+                  key={item.id}
+                  className={`flex gap-3 p-2 rounded-md cursor-pointer hover-elevate group ${item.videoId === videoId ? "bg-primary/10 ring-1 ring-primary/30" : ""}`}
+                  onClick={() => handlePlayFromPlaylist(item)}
+                  data-testid={`playlist-item-${item.id}`}
+                >
+                  <div className="relative shrink-0 w-24 aspect-video rounded-md overflow-hidden bg-muted">
+                    {item.thumbnail && (
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                    {item.duration && (
+                      <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded">
+                        {item.duration}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <p className="text-sm font-medium leading-tight line-clamp-2" data-testid={`playlist-item-title-${item.id}`}>{item.title}</p>
+                    {item.channel && <p className="text-xs text-muted-foreground">{item.channel}</p>}
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 invisible group-hover:visible self-center"
+                    onClick={(e) => { e.stopPropagation(); removeFromPlaylist.mutate(item.id); }}
+                    aria-label="Remove from playlist"
+                    data-testid={`playlist-remove-${item.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {playlistLoading && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col lg:w-1/2 lg:min-h-0 border-t lg:border-t-0 lg:border-l">

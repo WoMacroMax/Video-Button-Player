@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { insertPlaylistItemSchema } from "@shared/schema";
 
 interface YouTubeSearchResult {
   videoId: string;
@@ -15,6 +16,46 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.get("/api/playlist", async (_req, res) => {
+    try {
+      const items = await storage.getPlaylistItems();
+      res.json(items);
+    } catch (err) {
+      console.error("Failed to get playlist:", err);
+      res.status(500).json({ error: "Failed to get playlist" });
+    }
+  });
+
+  app.post("/api/playlist", async (req, res) => {
+    try {
+      const parsed = insertPlaylistItemSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      const existing = await storage.getPlaylistItemByVideoId(parsed.data.videoId);
+      if (existing) {
+        return res.status(409).json({ error: "Already in playlist", item: existing });
+      }
+      const item = await storage.addPlaylistItem(parsed.data);
+      res.status(201).json(item);
+    } catch (err) {
+      console.error("Failed to add to playlist:", err);
+      res.status(500).json({ error: "Failed to add to playlist" });
+    }
+  });
+
+  app.delete("/api/playlist/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      await storage.removePlaylistItem(id);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Failed to remove from playlist:", err);
+      res.status(500).json({ error: "Failed to remove from playlist" });
+    }
+  });
+
   app.get("/api/youtube-search", async (req, res) => {
     const query = req.query.q as string;
     if (!query || !query.trim()) {

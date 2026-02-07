@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,3 +16,21 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const playlistItems = pgTable("playlist_items", {
+  id: serial("id").primaryKey(),
+  videoId: text("video_id").notNull(),
+  title: text("title").notNull(),
+  thumbnail: text("thumbnail").notNull().default(""),
+  channel: text("channel").notNull().default(""),
+  duration: text("duration").notNull().default(""),
+  addedAt: timestamp("added_at").notNull().defaultNow(),
+});
+
+export const insertPlaylistItemSchema = createInsertSchema(playlistItems).omit({
+  id: true,
+  addedAt: true,
+});
+
+export type InsertPlaylistItem = z.infer<typeof insertPlaylistItemSchema>;
+export type PlaylistItem = typeof playlistItems.$inferSelect;
