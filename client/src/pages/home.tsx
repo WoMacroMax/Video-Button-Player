@@ -948,7 +948,7 @@ export default function Home() {
         <Button
           size="icon"
           variant="ghost"
-          className="bg-red-500 text-white border-2 border-red-400 border-b-red-700 border-r-red-700 rounded-lg shrink-0 shadow-[0_4px_0_0_#b91c1c,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#b91c1c,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-red-400"
+          className="bg-red-500 text-white border-2 border-red-400 border-b-red-700 border-r-red-700 rounded-lg shrink-0 shadow-[0_4px_0_0_#b91c1c,0_6px_8px_rgba(0,0,0,0.25)] active:translate-y-[2px] active:shadow-[0_1px_0_0_#b91c1c,0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-red-400 hidden"
           aria-label="Open Stem Separator"
           onClick={() => {
             setIsPlaying(false);
