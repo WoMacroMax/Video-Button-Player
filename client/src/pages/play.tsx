@@ -845,11 +845,11 @@ export default function PlayPage() {
         <div className="relative w-full min-h-0 flex items-stretch justify-stretch">
           <button
             type="button"
-            className={`absolute cursor-pointer bg-transparent border-none p-0 ${currentShape.widthClass} ${currentShape.heightClass}`}
+            className={`absolute cursor-pointer bg-transparent border-none p-0 transition-transform duration-300 ${currentShape.widthClass} ${currentShape.heightClass}`}
             style={{
               left: `${containerPosX}%`,
               top: `${containerPosY}%`,
-              transform: `translate(-50%, -50%) scale(${scaleFactor})`,
+              transform: `translate(-50%, -50%) scale(${scaleFactor}) ${isHovered ? "translateY(-4px)" : "translateY(0)"}`,
               transformOrigin: "center center",
             }}
             onClick={handleClick}
@@ -868,8 +868,8 @@ export default function PlayPage() {
                 ? `0 20px 60px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3), inset 0 -2px 6px rgba(0,0,0,0.2)`
                 : `0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25), inset 0 -2px 6px rgba(0,0,0,0.15)`,
               border: `4px solid ${borderColor}`,
-              transform: isHovered ? "translateY(-4px)" : "translateY(0)",
               background: "linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.8) 100%)",
+              animation: shape === "circle" && isPlaying ? "spin-record 4s linear infinite" : "none",
             }}
           >
             {displayMode === "image" && imageUrl ? (
@@ -889,44 +889,51 @@ export default function PlayPage() {
             )}
 
             <div
-              className="absolute z-20 pointer-events-auto"
-              style={{ bottom: "12%", right: "12%" }}
-            >
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); setIsMuted((m) => !m); }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); } }}
-                className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
-                aria-label={isMuted ? "Unmute audio" : "Mute audio"}
-                data-testid="button-mute-overlay"
-              >
-                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </div>
-            </div>
-
-            <div
-              className="absolute inset-0 z-10 transition-all duration-300 pointer-events-none"
+              className="absolute inset-0 z-20 pointer-events-none"
               style={{
-                background: isHovered
-                  ? "radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 70%)"
-                  : "radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)",
+                animation: shape === "circle" && isPlaying ? "spin-record-reverse 4s linear infinite" : "none",
               }}
             >
               <div
-                className="absolute flex items-center gap-2 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-semibold text-xs md:text-sm transition-opacity duration-300"
-                style={{
-                  left: `${buttonPosX}%`,
-                  top: `${buttonPosY}%`,
-                  transform: `translate(-50%, -50%) scale(${buttonScale[0] / 100})`,
-                  backgroundColor: buttonColor,
-                  opacity: isHovered ? 1 : 0,
-                  visibility: isHovered ? "visible" : "hidden",
-                }}
-                data-testid="text-click-indicator"
+                className="absolute pointer-events-auto"
+                style={{ bottom: "12%", right: "12%" }}
               >
-                <span>{buttonLabel}</span>
-                <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); setIsMuted((m) => !m); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); } }}
+                  className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
+                  aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+                  data-testid="button-mute-overlay"
+                >
+                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </div>
+              </div>
+
+              <div
+                className="absolute inset-0 z-10 transition-all duration-300 pointer-events-none"
+                style={{
+                  background: isHovered
+                    ? "radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 70%)"
+                    : "radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)",
+                }}
+              >
+                <div
+                  className="absolute flex items-center gap-2 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-semibold text-xs md:text-sm transition-opacity duration-300 pointer-events-auto"
+                  style={{
+                    left: `${buttonPosX}%`,
+                    top: `${buttonPosY}%`,
+                    transform: `translate(-50%, -50%) scale(${buttonScale[0] / 100})`,
+                    backgroundColor: buttonColor,
+                    opacity: isHovered ? 1 : 0,
+                    visibility: isHovered ? "visible" : "hidden",
+                  }}
+                  data-testid="text-click-indicator"
+                >
+                  <span>{buttonLabel}</span>
+                  <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+                </div>
               </div>
             </div>
           </div>
