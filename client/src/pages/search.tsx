@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Search, X, Link, Clock, Repeat, Loader2, ListPlus, Trash2, ListMusic } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Search, X, Link, Clock, Repeat, Loader2, ListPlus, Trash2, ListMusic, ExternalLink } from "lucide-react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +64,7 @@ interface SearchResult {
 
 const DEFAULT_VIDEO_ID = "Gai7-HR2YZk";
 const SEARCH_URLS_KEY = "search-youtube-urls";
+const VIEW_URLS_KEY = "view-youtube-urls";
 const MAX_HISTORY = 20;
 
 function loadUrlHistory(key: string): string[] {
@@ -226,6 +228,13 @@ export default function SearchPage() {
     setNowPlayingTitle(item.title);
     setUrlHistory(saveUrlToHistory(SEARCH_URLS_KEY, url));
   }, []);
+
+  const [, navigate] = useLocation();
+  const handleExportToView = useCallback(() => {
+    if (!videoUrl.trim()) return;
+    saveUrlToHistory(VIEW_URLS_KEY, videoUrl);
+    navigate("/view");
+  }, [videoUrl, navigate]);
 
   useEffect(() => {
     if (videoUrl.trim() && urlHistory.length === 0) {
@@ -456,6 +465,16 @@ export default function SearchPage() {
         >
           {addToPlaylist.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ListPlus className="w-4 h-4 mr-1" />}
           Save
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExportToView}
+          disabled={!videoUrl.trim()}
+          data-testid="export-to-view-button"
+        >
+          <ExternalLink className="w-4 h-4 mr-1" />
+          Export
         </Button>
       </div>
 
