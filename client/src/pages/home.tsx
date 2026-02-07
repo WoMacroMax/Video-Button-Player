@@ -1019,11 +1019,11 @@ export default function Home() {
         <div className="relative w-full min-h-0 flex items-stretch justify-stretch">
           <button
             type="button"
-            className={`absolute cursor-pointer bg-transparent border-none p-0 ${currentShape.widthClass} ${currentShape.heightClass}`}
+            className={`absolute cursor-pointer bg-transparent border-none p-0 transition-transform duration-300 ${currentShape.widthClass} ${currentShape.heightClass}`}
             style={{
               left: `${containerPosX}%`,
               top: `${containerPosY}%`,
-              transform: `translate(-50%, -50%) scale(${scaleFactor})`,
+              transform: `translate(-50%, -50%) scale(${scaleFactor}) ${isHovered ? "translateY(-4px)" : "translateY(0)"}`,
               transformOrigin: "center center",
             }}
           onClick={handleClick}
@@ -1042,7 +1042,7 @@ export default function Home() {
                 ? `0 20px 60px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3), inset 0 -2px 6px rgba(0,0,0,0.2)`
                 : `0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25), inset 0 -2px 6px rgba(0,0,0,0.15)`,
               border: `4px solid ${borderColor}`,
-              transform: isHovered ? "translateY(-4px)" : "translateY(0)",
+              animation: shape === "circle" && isPlaying ? "spin-record 4s linear infinite" : "none",
             }}
           >
             <div

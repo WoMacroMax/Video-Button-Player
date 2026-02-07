@@ -286,3 +286,8 @@
     inset: -1px;
   }
 }
+
+@keyframes spin-record {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
