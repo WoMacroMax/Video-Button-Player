@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DraggableResizablePanel } from "@/components/ui/draggable-resizable-panel";
 
 type SourceMode = "youtube" | "mp4";
@@ -629,27 +630,21 @@ export default function Home() {
               {mp4History.length > 0 && (
                 <div className="space-y-1" data-testid="dropdown-mp4-history">
                   <Label className="text-xs text-muted-foreground">Recent MP4 URLs</Label>
-                  <div className="max-h-32 overflow-y-auto rounded-md border bg-background">
-                    {mp4History.map((url) => (
-                      <div
-                        key={url}
-                        className="flex items-center gap-1 px-2 py-1.5 text-xs hover-elevate cursor-pointer group"
-                        onClick={() => handleMp4HistorySelect(url)}
-                        data-testid={`mp4-history-item`}
-                      >
-                        <span className="flex-1 text-left truncate" title={url}>
+                  <Select
+                    value={mp4Url}
+                    onValueChange={(val) => handleMp4HistorySelect(val)}
+                  >
+                    <SelectTrigger className="text-xs" data-testid="select-mp4-history">
+                      <SelectValue placeholder="Select a recent URL" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mp4History.map((url) => (
+                        <SelectItem key={url} value={url} data-testid="mp4-history-item">
                           {getLabelForUrl(url)}
-                        </span>
-                        <span
-                          className="shrink-0 visibility-hidden group-hover:visibility-visible rounded-sm p-0.5 hover:bg-muted"
-                          onClick={(e) => { e.stopPropagation(); handleRemoveMp4Url(url); }}
-                          data-testid="mp4-history-remove"
-                        >
-                          <X className="w-3 h-3" />
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </div>
@@ -671,27 +666,21 @@ export default function Home() {
               {youtubeHistory.length > 0 && (
                 <div className="space-y-1" data-testid="dropdown-youtube-history">
                   <Label className="text-xs text-muted-foreground">Recent YouTube URLs</Label>
-                  <div className="max-h-32 overflow-y-auto rounded-md border bg-background">
-                    {youtubeHistory.map((url) => (
-                      <div
-                        key={url}
-                        className="flex items-center gap-1 px-2 py-1.5 text-xs hover-elevate cursor-pointer group"
-                        onClick={() => handleYoutubeHistorySelect(url)}
-                        data-testid={`youtube-history-item`}
-                      >
-                        <span className="flex-1 text-left truncate" title={url}>
+                  <Select
+                    value={videoUrl}
+                    onValueChange={(val) => handleYoutubeHistorySelect(val)}
+                  >
+                    <SelectTrigger className="text-xs" data-testid="select-youtube-history">
+                      <SelectValue placeholder="Select a recent URL" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {youtubeHistory.map((url) => (
+                        <SelectItem key={url} value={url} data-testid="youtube-history-item">
                           {getLabelForUrl(url)}
-                        </span>
-                        <span
-                          className="shrink-0 visibility-hidden group-hover:visibility-visible rounded-sm p-0.5 hover:bg-muted"
-                          onClick={(e) => { e.stopPropagation(); handleRemoveYoutubeUrl(url); }}
-                          data-testid="youtube-history-remove"
-                        >
-                          <X className="w-3 h-3" />
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </div>
