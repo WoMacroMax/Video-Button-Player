@@ -1365,16 +1365,32 @@ function HiddenModeControls({
             {isLooping && (
               <>
                 <Repeat className="w-3 h-3 text-white/50" />
-                <div className="grid grid-cols-2 gap-2 w-full max-w-[200px]">
+                <div className="grid grid-cols-[auto_auto_auto] gap-1.5 w-full max-w-[260px]">
                   <Button size="sm" variant="ghost" onClick={onSetLoopStart} className="text-white/70 text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #3b82f6, 1px 1px 0 rgba(59,130,246,0.5)" }} data-testid="button-hidden-set-loop-start">
                     Set Start
                   </Button>
+                  <div className="flex items-center gap-0.5">
+                    <Button size="icon" variant="ghost" onClick={() => onLoopStartChange(Math.max(0, loopStartSeconds - 0.1))} className="text-white/70 w-7 h-7 text-xs rounded-md border border-white/20" data-testid="button-loop-start-minus">
+                      <span className="text-sm font-bold">-</span>
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => onLoopStartChange(Math.min(duration, loopStartSeconds + 0.1))} className="text-white/70 w-7 h-7 text-xs rounded-md border border-white/20" data-testid="button-loop-start-plus">
+                      <span className="text-sm font-bold">+</span>
+                    </Button>
+                  </div>
                   <Button size="sm" variant="secondary" onClick={onClearLoopStart} className="text-muted-foreground text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #6b7280, 1px 1px 0 rgba(107,114,128,0.5)" }} data-testid="button-hidden-clear-loop-start">
                     Clear
                   </Button>
                   <Button size="sm" variant="ghost" onClick={onSetLoopEnd} className="text-white/70 text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #10b981, 1px 1px 0 rgba(16,185,129,0.5)" }} data-testid="button-hidden-set-loop-end">
                     Set End
                   </Button>
+                  <div className="flex items-center gap-0.5">
+                    <Button size="icon" variant="ghost" onClick={() => onLoopEndChange(Math.max(0, (loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration) - 0.1))} className="text-white/70 w-7 h-7 text-xs rounded-md border border-white/20" data-testid="button-loop-end-minus">
+                      <span className="text-sm font-bold">-</span>
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => onLoopEndChange(Math.min(duration, (loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration) + 0.1))} className="text-white/70 w-7 h-7 text-xs rounded-md border border-white/20" data-testid="button-loop-end-plus">
+                      <span className="text-sm font-bold">+</span>
+                    </Button>
+                  </div>
                   <Button size="sm" variant="secondary" onClick={onClearLoopEnd} className="text-muted-foreground text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #f59e0b, 1px 1px 0 rgba(245,158,11,0.5)" }} data-testid="button-hidden-clear-loop-end">
                     Clear
                   </Button>
