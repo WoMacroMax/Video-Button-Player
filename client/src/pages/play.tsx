@@ -1411,6 +1411,7 @@ export default function PlayPage() {
           )}
         </div>
       </div>
+      </div>
 
       {!containerVisible && (
         <HiddenModeControls
