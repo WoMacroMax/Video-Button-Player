@@ -1,12 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Music, Film, X, GripHorizontal, ImageIcon } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Music, Film, X, GripHorizontal, ImageIcon, Minus, Plus } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
+import { MicroAdjustButton } from "@/components/ui/micro-adjust-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DraggableResizablePanel } from "@/components/ui/draggable-resizable-panel";
 
 const DEFAULT_AUDIO_URL = "https://xrwnptogkhxeyamjcxhd.supabase.co/storage/v1/object/public/attachments/1770396018869-OneDanceSnippet.mp4";
@@ -212,9 +214,23 @@ export default function PlayPage() {
   const [progress, setProgress] = useState([0]);
   const [playerReady, setPlayerReady] = useState(false);
   const [shape, setShape] = useState<ContainerShape>("circle");
+  const [containerRounded, setContainerRounded] = useState(true);
+  const [iframe1Rounded, setIframe1Rounded] = useState(true);
+  const [iframe2Rounded, setIframe2Rounded] = useState(true);
+  const [lockIframe1ScrollY, setLockIframe1ScrollY] = useState(true);
+  const [lockIframe1ScrollX, setLockIframe1ScrollX] = useState(true);
+  const [lockIframe2ScrollY, setLockIframe2ScrollY] = useState(true);
+  const [lockIframe2ScrollX, setLockIframe2ScrollX] = useState(true);
+  const [iframe1ZIndex, setIframe1ZIndex] = useState(10);
+  const [iframe2ZIndex, setIframe2ZIndex] = useState(20);
   const [scale, setScale] = useState([100]);
   const [containerPosX, setContainerPosX] = useState(50);
   const [containerPosY, setContainerPosY] = useState(20);
+  const [containerWidth, setContainerWidth] = useState([100]);
+  const [containerHeight, setContainerHeight] = useState([100]);
+  const [lockViewportScrollY, setLockViewportScrollY] = useState(false);
+  const [lockViewportScrollX, setLockViewportScrollX] = useState(false);
+  const [mediaZIndex, setMediaZIndex] = useState(10);
   const [bgColor, setBgColor] = useState("#667eea");
   const [borderColor, setBorderColor] = useState("#ffffff33");
   const [containerVisible, setContainerVisible] = useState(true);
@@ -424,6 +440,22 @@ export default function PlayPage() {
     if (stemModalOpen) sendAudioToStem();
   }, [stemModalOpen, sendAudioToStem]);
 
+  useEffect(() => {
+    const prevX = document.body.style.overflowX;
+    const prevY = document.body.style.overflowY;
+    if (containerVisible) {
+      document.body.style.overflowX = lockViewportScrollX ? "hidden" : "";
+      document.body.style.overflowY = lockViewportScrollY ? "hidden" : "";
+    } else {
+      document.body.style.overflowX = "";
+      document.body.style.overflowY = "";
+    }
+    return () => {
+      document.body.style.overflowX = prevX;
+      document.body.style.overflowY = prevY;
+    };
+  }, [containerVisible, lockViewportScrollX, lockViewportScrollY]);
+
   const loopStartSeconds = parseLoopMs(loopStart);
   const loopEndSeconds = loopEnd ? parseLoopMs(loopEnd) : 0;
   const isLoopValid = !loopEnd || (loopEndSeconds > loopStartSeconds && loopEndSeconds <= duration);
@@ -567,28 +599,26 @@ export default function PlayPage() {
             <div className="space-y-4 p-3 bg-muted rounded-md">
               <Label className="text-sm font-medium">Launch-site button</Label>
               <ColorPickerField label="Color" color={buttonColor} onChange={setButtonColor} testId="color-launch-button" />
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <Label className="text-xs">X position (%)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={buttonPosX}
-                    onChange={(e) => setButtonPosX(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
-                    data-testid="input-button-pos-x"
-                  />
+                  <span className="text-xs text-muted-foreground">{buttonPosX}</span>
                 </div>
-                <div className="space-y-1">
+                <div className="flex items-center gap-1">
+                  <MicroAdjustButton step={() => setButtonPosX(Math.max(0, Math.min(100, buttonPosX - 0.01)))} aria-label="Decrease X" data-testid="micro-button-pos-x-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                  <Slider value={[buttonPosX]} onValueChange={(v) => setButtonPosX(v[0])} min={0} max={100} step={0.01} className="flex-1" data-testid="slider-button-pos-x" />
+                  <MicroAdjustButton step={() => setButtonPosX(Math.max(0, Math.min(100, buttonPosX + 0.01)))} aria-label="Increase X" data-testid="micro-button-pos-x-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <Label className="text-xs">Y position (%)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={buttonPosY}
-                    onChange={(e) => setButtonPosY(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
-                    data-testid="input-button-pos-y"
-                  />
+                  <span className="text-xs text-muted-foreground">{buttonPosY}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <MicroAdjustButton step={() => setButtonPosY(Math.max(0, Math.min(100, buttonPosY - 0.01)))} aria-label="Decrease Y" data-testid="micro-button-pos-y-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                  <Slider value={[buttonPosY]} onValueChange={(v) => setButtonPosY(v[0])} min={0} max={100} step={0.01} className="flex-1" data-testid="slider-button-pos-y" />
+                  <MicroAdjustButton step={() => setButtonPosY(Math.max(0, Math.min(100, buttonPosY + 0.01)))} aria-label="Increase Y" data-testid="micro-button-pos-y-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
                 </div>
               </div>
               <div className="space-y-2">
@@ -626,6 +656,10 @@ export default function PlayPage() {
                   </Button>
                 ))}
               </div>
+              <div className="flex items-center justify-between pt-2">
+                <Label className="text-xs">Rounded edges (media container)</Label>
+                <Switch checked={containerRounded} onCheckedChange={setContainerRounded} data-testid="switch-container-rounded" />
+              </div>
             </div>
 
             <div className="space-y-4 p-3 bg-muted rounded-md">
@@ -635,21 +669,76 @@ export default function PlayPage() {
                   <Label className="text-xs">Scale</Label>
                   <span className="text-xs text-muted-foreground">{scale[0]}%</span>
                 </div>
-                <Slider value={scale} onValueChange={setScale} min={50} max={200} step={5} className="w-full" data-testid="slider-scale" />
+                <div className="flex items-center gap-1">
+                  <MicroAdjustButton step={() => setScale([Math.max(50, Math.min(200, scale[0] - 0.01))])} aria-label="Decrease scale" data-testid="micro-scale-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                  <Slider value={scale} onValueChange={setScale} min={50} max={200} step={0.01} className="flex-1" data-testid="slider-scale" />
+                  <MicroAdjustButton step={() => setScale([Math.max(50, Math.min(200, scale[0] + 0.01))])} aria-label="Increase scale" data-testid="micro-scale-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs">X position (%)</Label>
                   <span className="text-xs text-muted-foreground">{containerPosX}</span>
                 </div>
-                <Slider value={[containerPosX]} onValueChange={(v) => setContainerPosX(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-container-pos-x" />
+                <div className="flex items-center gap-1">
+                  <MicroAdjustButton step={() => setContainerPosX(Math.max(0, Math.min(100, containerPosX - 0.01)))} aria-label="Decrease X position" data-testid="micro-pos-x-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                  <Slider value={[containerPosX]} onValueChange={(v) => setContainerPosX(v[0])} min={0} max={100} step={0.01} className="flex-1" data-testid="slider-container-pos-x" />
+                  <MicroAdjustButton step={() => setContainerPosX(Math.max(0, Math.min(100, containerPosX + 0.01)))} aria-label="Increase X position" data-testid="micro-pos-x-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs">Y position (%)</Label>
                   <span className="text-xs text-muted-foreground">{containerPosY}</span>
                 </div>
-                <Slider value={[containerPosY]} onValueChange={(v) => setContainerPosY(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-container-pos-y" />
+                <div className="flex items-center gap-1">
+                  <MicroAdjustButton step={() => setContainerPosY(Math.max(0, Math.min(100, containerPosY - 0.01)))} aria-label="Decrease Y position" data-testid="micro-pos-y-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                  <Slider value={[containerPosY]} onValueChange={(v) => setContainerPosY(v[0])} min={0} max={100} step={0.01} className="flex-1" data-testid="slider-container-pos-y" />
+                  <MicroAdjustButton step={() => setContainerPosY(Math.max(0, Math.min(100, containerPosY + 0.01)))} aria-label="Increase Y position" data-testid="micro-pos-y-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Width (%)</Label>
+                  <span className="text-xs text-muted-foreground">{containerWidth[0]}%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <MicroAdjustButton step={() => setContainerWidth([Math.max(50, Math.min(200, containerWidth[0] - 0.01))])} aria-label="Decrease width" data-testid="micro-width-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                  <Slider value={containerWidth} onValueChange={setContainerWidth} min={50} max={200} step={0.01} className="flex-1" data-testid="slider-container-width" />
+                  <MicroAdjustButton step={() => setContainerWidth([Math.max(50, Math.min(200, containerWidth[0] + 0.01))])} aria-label="Increase width" data-testid="micro-width-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Height (%)</Label>
+                  <span className="text-xs text-muted-foreground">{containerHeight[0]}%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <MicroAdjustButton step={() => setContainerHeight([Math.max(50, Math.min(200, containerHeight[0] - 0.01))])} aria-label="Decrease height" data-testid="micro-height-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                  <Slider value={containerHeight} onValueChange={setContainerHeight} min={50} max={200} step={0.01} className="flex-1" data-testid="slider-container-height" />
+                  <MicroAdjustButton step={() => setContainerHeight([Math.max(50, Math.min(200, containerHeight[0] + 0.01))])} aria-label="Increase height" data-testid="micro-height-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Lock vertical scroll</Label>
+                <Switch checked={lockViewportScrollY} onCheckedChange={setLockViewportScrollY} data-testid="switch-lock-viewport-scroll-y" />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Lock horizontal scroll</Label>
+                <Switch checked={lockViewportScrollX} onCheckedChange={setLockViewportScrollX} data-testid="switch-lock-viewport-scroll-x" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Z-order (overlap)</Label>
+                <Select value={String(mediaZIndex)} onValueChange={(v) => setMediaZIndex(Number(v))} data-testid="select-media-z-index">
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Z-order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">Bottom</SelectItem>
+                    <SelectItem value="20">Middle</SelectItem>
+                    <SelectItem value="30">Top</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -749,22 +838,32 @@ export default function PlayPage() {
                   <p className="text-xs text-muted-foreground font-medium">Manual Input</p>
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="loop-start" className="text-sm font-medium whitespace-nowrap">Start</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <MicroAdjustButton step={() => { const ms = parseFloat(loopStart || "0") - 0.01; setLoopStart(String(Math.max(0, ms))); }} aria-label="Decrease start" data-testid="micro-loop-start-input-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
                       <Input id="loop-start" value={loopStart} onChange={(e) => setLoopStart(e.target.value)} placeholder="0" className="w-24 text-center" data-testid="input-loop-start" />
+                      <MicroAdjustButton step={() => { const maxMs = duration > 0 ? duration * 1000 : 0; const ms = parseFloat(loopStart || "0") + 0.01; setLoopStart(String(Math.min(maxMs, ms))); }} aria-label="Increase start" data-testid="micro-loop-start-input-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
                       <Button size="sm" variant="outline" onClick={handleSetLoopStartToCurrent} data-testid="button-set-loop-start">Set</Button>
                       <Button size="sm" variant="secondary" className="text-muted-foreground" onClick={() => setLoopStart("0")} data-testid="button-clear-loop-start">Clear</Button>
+                      <span className="text-xs text-muted-foreground ml-1 whitespace-nowrap" title="Fine adjust ±0.001 ms">Fine</span>
+                      <MicroAdjustButton step={() => { const ms = parseFloat(loopStart || "0") - 0.001; setLoopStart(String(Math.max(0, ms))); }} aria-label="Fine decrease start (0.001 ms)" data-testid="fine-loop-start-minus" className="bg-neutral-400 text-neutral-900 border-2 border-neutral-500 border-b-neutral-600 border-r-neutral-600 shadow-[0_2px_0_0_#374151] active:translate-y-[1px] active:shadow-none hover:bg-neutral-300"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                      <MicroAdjustButton step={() => { const maxMs = duration > 0 ? duration * 1000 : 0; const ms = parseFloat(loopStart || "0") + 0.001; setLoopStart(String(Math.min(maxMs, ms))); }} aria-label="Fine increase start (0.001 ms)" data-testid="fine-loop-start-plus" className="bg-neutral-400 text-neutral-900 border-2 border-neutral-500 border-b-neutral-600 border-r-neutral-600 shadow-[0_2px_0_0_#374151] active:translate-y-[1px] active:shadow-none hover:bg-neutral-300"><Plus className="w-4 h-4" /></MicroAdjustButton>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="loop-end" className="text-sm font-medium whitespace-nowrap">End</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <MicroAdjustButton step={() => { const ms = parseFloat(loopEnd || "0") - 0.01; setLoopEnd(String(Math.max(0, ms))); }} aria-label="Decrease end" data-testid="micro-loop-end-input-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
                       <Input id="loop-end" value={loopEnd} onChange={(e) => setLoopEnd(e.target.value)} placeholder="e.g. 24000" className={`w-24 text-center ${!isLoopValid ? "border-destructive" : ""}`} data-testid="input-loop-end" />
+                      <MicroAdjustButton step={() => { const maxMs = duration > 0 ? duration * 1000 : 0; const ms = parseFloat(loopEnd || String(maxMs)) + 0.01; setLoopEnd(String(Math.min(maxMs, ms))); }} aria-label="Increase end" data-testid="micro-loop-end-input-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
                       <Button size="sm" variant="outline" onClick={handleSetLoopEndToCurrent} data-testid="button-set-loop-end">Set</Button>
                       <Button size="sm" variant="secondary" className="text-muted-foreground" onClick={() => setLoopEnd("")} data-testid="button-clear-loop-end">Clear</Button>
+                      <span className="text-xs text-muted-foreground ml-1 whitespace-nowrap" title="Fine adjust ±0.001 ms">Fine</span>
+                      <MicroAdjustButton step={() => { const ms = parseFloat(loopEnd || "0") - 0.001; setLoopEnd(String(Math.max(0, ms))); }} aria-label="Fine decrease end (0.001 ms)" data-testid="fine-loop-end-minus" className="bg-neutral-400 text-neutral-900 border-2 border-neutral-500 border-b-neutral-600 border-r-neutral-600 shadow-[0_2px_0_0_#374151] active:translate-y-[1px] active:shadow-none hover:bg-neutral-300"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                      <MicroAdjustButton step={() => { const maxMs = duration > 0 ? duration * 1000 : 0; const ms = parseFloat(loopEnd || String(maxMs)) + 0.001; setLoopEnd(String(Math.min(maxMs, ms))); }} aria-label="Fine increase end (0.001 ms)" data-testid="fine-loop-end-plus" className="bg-neutral-400 text-neutral-900 border-2 border-neutral-500 border-b-neutral-600 border-r-neutral-600 shadow-[0_2px_0_0_#374151] active:translate-y-[1px] active:shadow-none hover:bg-neutral-300"><Plus className="w-4 h-4" /></MicroAdjustButton>
                     </div>
                   </div>
                   {!isLoopValid && <p className="text-xs text-destructive">End time must be after start time</p>}
-                  <p className="text-xs text-muted-foreground">Enter time in milliseconds (e.g., 20000 for 20 seconds)</p>
+                  <p className="text-xs text-muted-foreground">Enter time in milliseconds (e.g., 20000 for 20 seconds). ±0.01 ms with +/−; Fine adjust ±0.001 ms</p>
                 </div>
               </div>
             )}
@@ -781,6 +880,31 @@ export default function PlayPage() {
                   </Label>
                   <Switch checked={iframe1Visible} onCheckedChange={setIframe1Visible} data-testid="switch-iframe1-visible" />
                 </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Rounded edges</Label>
+                  <Switch checked={iframe1Rounded} onCheckedChange={setIframe1Rounded} data-testid="switch-iframe1-rounded" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Lock vertical scroll</Label>
+                  <Switch checked={lockIframe1ScrollY} onCheckedChange={setLockIframe1ScrollY} data-testid="switch-iframe1-lock-scroll-y" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Lock horizontal scroll</Label>
+                  <Switch checked={lockIframe1ScrollX} onCheckedChange={setLockIframe1ScrollX} data-testid="switch-iframe1-lock-scroll-x" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Z-order (overlap)</Label>
+                  <Select value={String(iframe1ZIndex)} onValueChange={(v) => setIframe1ZIndex(Number(v))} data-testid="select-iframe1-z-index">
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Z-order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">Bottom</SelectItem>
+                      <SelectItem value="20">Middle</SelectItem>
+                      <SelectItem value="30">Top</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1">
                   <Label className="text-xs">URL Source</Label>
                   <Input value={iframe1Url} onChange={(e) => setIframe1Url(e.target.value)} placeholder="https://example.com" data-testid="input-iframe1-url" />
@@ -790,35 +914,55 @@ export default function PlayPage() {
                     <Label className="text-xs">X position (%)</Label>
                     <span className="text-xs text-muted-foreground">{iframe1PosX}</span>
                   </div>
-                  <Slider value={[iframe1PosX]} onValueChange={(v) => setIframe1PosX(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-iframe1-pos-x" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe1PosX(Math.max(0, Math.min(100, iframe1PosX - 0.01)))} aria-label="Decrease X" data-testid="micro-iframe1-pos-x-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={[iframe1PosX]} onValueChange={(v) => setIframe1PosX(v[0])} min={0} max={100} step={0.01} className="flex-1" data-testid="slider-iframe1-pos-x" />
+                    <MicroAdjustButton step={() => setIframe1PosX(Math.max(0, Math.min(100, iframe1PosX + 0.01)))} aria-label="Increase X" data-testid="micro-iframe1-pos-x-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Y position (%)</Label>
                     <span className="text-xs text-muted-foreground">{iframe1PosY}</span>
                   </div>
-                  <Slider value={[iframe1PosY]} onValueChange={(v) => setIframe1PosY(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-iframe1-pos-y" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe1PosY(Math.max(0, Math.min(100, iframe1PosY - 0.01)))} aria-label="Decrease Y" data-testid="micro-iframe1-pos-y-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={[iframe1PosY]} onValueChange={(v) => setIframe1PosY(v[0])} min={0} max={100} step={0.01} className="flex-1" data-testid="slider-iframe1-pos-y" />
+                    <MicroAdjustButton step={() => setIframe1PosY(Math.max(0, Math.min(100, iframe1PosY + 0.01)))} aria-label="Increase Y" data-testid="micro-iframe1-pos-y-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Scale (%)</Label>
                     <span className="text-xs text-muted-foreground">{iframe1Scale[0]}</span>
                   </div>
-                  <Slider value={iframe1Scale} onValueChange={setIframe1Scale} min={10} max={300} step={5} className="w-full" data-testid="slider-iframe1-scale" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe1Scale([Math.max(10, Math.min(300, iframe1Scale[0] - 0.01))])} aria-label="Decrease scale" data-testid="micro-iframe1-scale-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={iframe1Scale} onValueChange={setIframe1Scale} min={10} max={300} step={0.01} className="flex-1" data-testid="slider-iframe1-scale" />
+                    <MicroAdjustButton step={() => setIframe1Scale([Math.max(10, Math.min(300, iframe1Scale[0] + 0.01))])} aria-label="Increase scale" data-testid="micro-iframe1-scale-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Width (px)</Label>
                     <span className="text-xs text-muted-foreground">{iframe1Width[0]}</span>
                   </div>
-                  <Slider value={iframe1Width} onValueChange={setIframe1Width} min={100} max={2000} step={10} className="w-full" data-testid="slider-iframe1-width" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe1Width([Math.max(100, Math.min(2000, iframe1Width[0] - 0.01))])} aria-label="Decrease width" data-testid="micro-iframe1-width-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={iframe1Width} onValueChange={setIframe1Width} min={100} max={2000} step={0.01} className="flex-1" data-testid="slider-iframe1-width" />
+                    <MicroAdjustButton step={() => setIframe1Width([Math.max(100, Math.min(2000, iframe1Width[0] + 0.01))])} aria-label="Increase width" data-testid="micro-iframe1-width-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Height (px)</Label>
                     <span className="text-xs text-muted-foreground">{iframe1Height[0]}</span>
                   </div>
-                  <Slider value={iframe1Height} onValueChange={setIframe1Height} min={50} max={900} step={10} className="w-full" data-testid="slider-iframe1-height" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe1Height([Math.max(50, Math.min(900, iframe1Height[0] - 0.01))])} aria-label="Decrease height" data-testid="micro-iframe1-height-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={iframe1Height} onValueChange={setIframe1Height} min={50} max={900} step={0.01} className="flex-1" data-testid="slider-iframe1-height" />
+                    <MicroAdjustButton step={() => setIframe1Height([Math.max(50, Math.min(900, iframe1Height[0] + 0.01))])} aria-label="Increase height" data-testid="micro-iframe1-height-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
               </div>
             </div>
@@ -836,6 +980,31 @@ export default function PlayPage() {
                   </Label>
                   <Switch checked={iframe2Visible} onCheckedChange={setIframe2Visible} data-testid="switch-iframe2-visible" />
                 </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Rounded edges</Label>
+                  <Switch checked={iframe2Rounded} onCheckedChange={setIframe2Rounded} data-testid="switch-iframe2-rounded" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Lock vertical scroll</Label>
+                  <Switch checked={lockIframe2ScrollY} onCheckedChange={setLockIframe2ScrollY} data-testid="switch-iframe2-lock-scroll-y" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Lock horizontal scroll</Label>
+                  <Switch checked={lockIframe2ScrollX} onCheckedChange={setLockIframe2ScrollX} data-testid="switch-iframe2-lock-scroll-x" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Z-order (overlap)</Label>
+                  <Select value={String(iframe2ZIndex)} onValueChange={(v) => setIframe2ZIndex(Number(v))} data-testid="select-iframe2-z-index">
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Z-order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">Bottom</SelectItem>
+                      <SelectItem value="20">Middle</SelectItem>
+                      <SelectItem value="30">Top</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1">
                   <Label className="text-xs">URL Source</Label>
                   <Input value={iframe2Url} onChange={(e) => setIframe2Url(e.target.value)} placeholder="https://example.com" data-testid="input-iframe2-url" />
@@ -845,35 +1014,55 @@ export default function PlayPage() {
                     <Label className="text-xs">X position (%)</Label>
                     <span className="text-xs text-muted-foreground">{iframe2PosX}</span>
                   </div>
-                  <Slider value={[iframe2PosX]} onValueChange={(v) => setIframe2PosX(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-iframe2-pos-x" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe2PosX(Math.max(0, Math.min(100, iframe2PosX - 0.01)))} aria-label="Decrease X" data-testid="micro-iframe2-pos-x-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={[iframe2PosX]} onValueChange={(v) => setIframe2PosX(v[0])} min={0} max={100} step={0.01} className="flex-1" data-testid="slider-iframe2-pos-x" />
+                    <MicroAdjustButton step={() => setIframe2PosX(Math.max(0, Math.min(100, iframe2PosX + 0.01)))} aria-label="Increase X" data-testid="micro-iframe2-pos-x-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Y position (%)</Label>
                     <span className="text-xs text-muted-foreground">{iframe2PosY}</span>
                   </div>
-                  <Slider value={[iframe2PosY]} onValueChange={(v) => setIframe2PosY(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-iframe2-pos-y" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe2PosY(Math.max(0, Math.min(100, iframe2PosY - 0.01)))} aria-label="Decrease Y" data-testid="micro-iframe2-pos-y-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={[iframe2PosY]} onValueChange={(v) => setIframe2PosY(v[0])} min={0} max={100} step={0.01} className="flex-1" data-testid="slider-iframe2-pos-y" />
+                    <MicroAdjustButton step={() => setIframe2PosY(Math.max(0, Math.min(100, iframe2PosY + 0.01)))} aria-label="Increase Y" data-testid="micro-iframe2-pos-y-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Scale (%)</Label>
                     <span className="text-xs text-muted-foreground">{iframe2Scale[0]}</span>
                   </div>
-                  <Slider value={iframe2Scale} onValueChange={setIframe2Scale} min={10} max={300} step={5} className="w-full" data-testid="slider-iframe2-scale" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe2Scale([Math.max(10, Math.min(300, iframe2Scale[0] - 0.01))])} aria-label="Decrease scale" data-testid="micro-iframe2-scale-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={iframe2Scale} onValueChange={setIframe2Scale} min={10} max={300} step={0.01} className="flex-1" data-testid="slider-iframe2-scale" />
+                    <MicroAdjustButton step={() => setIframe2Scale([Math.max(10, Math.min(300, iframe2Scale[0] + 0.01))])} aria-label="Increase scale" data-testid="micro-iframe2-scale-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Width (px)</Label>
                     <span className="text-xs text-muted-foreground">{iframe2Width[0]}</span>
                   </div>
-                  <Slider value={iframe2Width} onValueChange={setIframe2Width} min={100} max={2000} step={10} className="w-full" data-testid="slider-iframe2-width" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe2Width([Math.max(100, Math.min(2000, iframe2Width[0] - 0.01))])} aria-label="Decrease width" data-testid="micro-iframe2-width-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={iframe2Width} onValueChange={setIframe2Width} min={100} max={2000} step={0.01} className="flex-1" data-testid="slider-iframe2-width" />
+                    <MicroAdjustButton step={() => setIframe2Width([Math.max(100, Math.min(2000, iframe2Width[0] + 0.01))])} aria-label="Increase width" data-testid="micro-iframe2-width-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Height (px)</Label>
                     <span className="text-xs text-muted-foreground">{iframe2Height[0]}</span>
                   </div>
-                  <Slider value={iframe2Height} onValueChange={setIframe2Height} min={50} max={900} step={10} className="w-full" data-testid="slider-iframe2-height" />
+                  <div className="flex items-center gap-1">
+                    <MicroAdjustButton step={() => setIframe2Height([Math.max(50, Math.min(900, iframe2Height[0] - 0.01))])} aria-label="Decrease height" data-testid="micro-iframe2-height-minus"><Minus className="w-4 h-4" /></MicroAdjustButton>
+                    <Slider value={iframe2Height} onValueChange={setIframe2Height} min={50} max={900} step={0.01} className="flex-1" data-testid="slider-iframe2-height" />
+                    <MicroAdjustButton step={() => setIframe2Height([Math.max(50, Math.min(900, iframe2Height[0] + 0.01))])} aria-label="Increase height" data-testid="micro-iframe2-height-plus"><Plus className="w-4 h-4" /></MicroAdjustButton>
+                  </div>
                 </div>
               </div>
             </div>
@@ -955,8 +1144,9 @@ export default function PlayPage() {
             style={{
               left: `${containerPosX}%`,
               top: `${containerPosY}%`,
-              transform: `translate(-50%, -50%) scale(${scaleFactor}) ${isHovered ? "translateY(-4px)" : "translateY(0)"}`,
+              transform: `translate(-50%, -50%) scale(${(scaleFactor * containerWidth[0]) / 100}, ${(scaleFactor * containerHeight[0]) / 100}) ${isHovered ? "translateY(-4px)" : "translateY(0)"}`,
               transformOrigin: "center center",
+              zIndex: mediaZIndex,
             }}
             onClick={handleClick}
             onKeyDown={handleKeyDown}
@@ -969,7 +1159,7 @@ export default function PlayPage() {
             ref={containerRef}
             className="relative w-full h-full overflow-hidden transition-all duration-300"
             style={{
-              borderRadius: currentShape.borderRadius,
+              borderRadius: containerRounded ? currentShape.borderRadius : "0",
               boxShadow: isHovered
                 ? `0 20px 60px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3), inset 0 -2px 6px rgba(0,0,0,0.2)`
                 : `0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25), inset 0 -2px 6px rgba(0,0,0,0.15)`,
@@ -1054,12 +1244,16 @@ export default function PlayPage() {
                 transform: `translate(-50%, -50%) scale(${iframe1Scale[0] / 100})`,
                 width: `${iframe1Width[0]}px`,
                 height: `${iframe1Height[0]}px`,
+                borderRadius: iframe1Rounded ? "12px" : 0,
+                overflowX: lockIframe1ScrollX ? "hidden" : "auto",
+                overflowY: lockIframe1ScrollY ? "hidden" : "auto",
+                zIndex: iframe1ZIndex,
               }}
               data-testid="iframe1-container"
             >
               <iframe
                 src={iframe1Url}
-                className="w-full h-full border-0 rounded-lg shadow-lg"
+                className="w-full h-full border-0 shadow-lg"
                 title="iFrame Container 1"
                 allow="autoplay; fullscreen"
                 data-testid="iframe1"
@@ -1076,12 +1270,16 @@ export default function PlayPage() {
                 transform: `translate(-50%, -50%) scale(${iframe2Scale[0] / 100})`,
                 width: `${iframe2Width[0]}px`,
                 height: `${iframe2Height[0]}px`,
+                borderRadius: iframe2Rounded ? "12px" : 0,
+                overflowX: lockIframe2ScrollX ? "hidden" : "auto",
+                overflowY: lockIframe2ScrollY ? "hidden" : "auto",
+                zIndex: iframe2ZIndex,
               }}
               data-testid="iframe2-container"
             >
               <iframe
                 src={iframe2Url}
-                className="w-full h-full border-0 rounded-lg shadow-lg"
+                className="w-full h-full border-0 shadow-lg"
                 title="iFrame Container 2"
                 allow="autoplay; fullscreen"
                 data-testid="iframe2"
@@ -1336,7 +1534,7 @@ function HiddenModeControls({
             {isLooping && (
               <>
                 <Repeat className="w-3 h-3 text-white/50" />
-                <div className="grid grid-cols-[auto_auto_auto] gap-1.5 w-full max-w-[260px]">
+                <div className="grid grid-cols-[auto_auto_auto_auto] gap-1.5 w-full max-w-[320px]">
                   <Button size="sm" variant="ghost" onClick={onSetLoopStart} className="text-white/70 text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #3b82f6, 1px 1px 0 rgba(59,130,246,0.5)" }} data-testid="button-hidden-set-loop-start">
                     Set Start
                   </Button>
@@ -1351,6 +1549,11 @@ function HiddenModeControls({
                   <Button size="sm" variant="secondary" onClick={onClearLoopStart} className="text-muted-foreground text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #6b7280, 1px 1px 0 rgba(107,114,128,0.5)" }} data-testid="button-hidden-clear-loop-start">
                     Clear
                   </Button>
+                  <div className="flex items-center gap-0.5" title="Fine adjust ±0.001 s">
+                    <span className="text-white/50 text-[10px] mr-0.5">Fine</span>
+                    <Button size="icon" variant="ghost" onClick={() => onLoopStartChange(Math.max(0, loopStartSeconds - 0.001))} className="w-7 h-7 text-xs rounded-md bg-neutral-400 text-neutral-900 border-2 border-neutral-500 border-b-neutral-600 border-r-neutral-600 shadow-[0_2px_0_0_#374151] active:translate-y-[1px] active:shadow-none hover:bg-neutral-300" aria-label="Fine decrease start" data-testid="button-hidden-fine-loop-start-minus"><Minus className="w-3 h-3" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => onLoopStartChange(Math.min(duration, loopStartSeconds + 0.001))} className="w-7 h-7 text-xs rounded-md bg-neutral-400 text-neutral-900 border-2 border-neutral-500 border-b-neutral-600 border-r-neutral-600 shadow-[0_2px_0_0_#374151] active:translate-y-[1px] active:shadow-none hover:bg-neutral-300" aria-label="Fine increase start" data-testid="button-hidden-fine-loop-start-plus"><Plus className="w-3 h-3" /></Button>
+                  </div>
                   <Button size="sm" variant="ghost" onClick={onSetLoopEnd} className="text-white/70 text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #10b981, 1px 1px 0 rgba(16,185,129,0.5)" }} data-testid="button-hidden-set-loop-end">
                     Set End
                   </Button>
@@ -1365,6 +1568,11 @@ function HiddenModeControls({
                   <Button size="sm" variant="secondary" onClick={onClearLoopEnd} className="text-muted-foreground text-xs rounded-md border border-white/20" style={{ boxShadow: "3px 3px 0 #f59e0b, 1px 1px 0 rgba(245,158,11,0.5)" }} data-testid="button-hidden-clear-loop-end">
                     Clear
                   </Button>
+                  <div className="flex items-center gap-0.5" title="Fine adjust ±0.001 s">
+                    <span className="text-white/50 text-[10px] mr-0.5">Fine</span>
+                    <Button size="icon" variant="ghost" onClick={() => onLoopEndChange(Math.max(0, (loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration) - 0.001))} className="w-7 h-7 text-xs rounded-md bg-neutral-400 text-neutral-900 border-2 border-neutral-500 border-b-neutral-600 border-r-neutral-600 shadow-[0_2px_0_0_#374151] active:translate-y-[1px] active:shadow-none hover:bg-neutral-300" aria-label="Fine decrease end" data-testid="button-hidden-fine-loop-end-minus"><Minus className="w-3 h-3" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => onLoopEndChange(Math.min(duration, (loopEndSeconds > loopStartSeconds ? loopEndSeconds : duration) + 0.001))} className="w-7 h-7 text-xs rounded-md bg-neutral-400 text-neutral-900 border-2 border-neutral-500 border-b-neutral-600 border-r-neutral-600 shadow-[0_2px_0_0_#374151] active:translate-y-[1px] active:shadow-none hover:bg-neutral-300" aria-label="Fine increase end" data-testid="button-hidden-fine-loop-end-plus"><Plus className="w-3 h-3" /></Button>
+                  </div>
                 </div>
               </>
             )}
