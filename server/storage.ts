@@ -1,6 +1,6 @@
-import { type User, type InsertUser, type PlaylistItem, type InsertPlaylistItem, users, playlistItems } from "@shared/schema";
+import { type User, type InsertUser, type PlaylistItem, type InsertPlaylistItem, type RouteSettings, type InsertRouteSettings, users, playlistItems, routeSettings } from "@shared/schema";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, asc, sql } from "drizzle-orm";
 import pg from "pg";
 
 const pool = new pg.Pool({
@@ -17,6 +17,9 @@ export interface IStorage {
   addPlaylistItem(item: InsertPlaylistItem): Promise<PlaylistItem>;
   removePlaylistItem(id: number): Promise<void>;
   getPlaylistItemByVideoId(videoId: string): Promise<PlaylistItem | undefined>;
+  saveRouteSettings(data: InsertRouteSettings): Promise<RouteSettings>;
+  getRouteSettings(route: string, width: number): Promise<RouteSettings | undefined>;
+  getAllRouteSettings(route: string): Promise<RouteSettings[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -51,6 +54,45 @@ export class DatabaseStorage implements IStorage {
   async getPlaylistItemByVideoId(videoId: string): Promise<PlaylistItem | undefined> {
     const [item] = await db.select().from(playlistItems).where(eq(playlistItems.videoId, videoId));
     return item;
+  }
+
+  async saveRouteSettings(data: InsertRouteSettings): Promise<RouteSettings> {
+    const existing = await db.select().from(routeSettings)
+      .where(and(eq(routeSettings.route, data.route), eq(routeSettings.width, data.width)));
+    let result: RouteSettings;
+    if (existing.length > 0) {
+      const [updated] = await db.update(routeSettings)
+        .set({ settings: data.settings, globalUrls: data.globalUrls })
+        .where(and(eq(routeSettings.route, data.route), eq(routeSettings.width, data.width)))
+        .returning();
+      result = updated;
+    } else {
+      const [created] = await db.insert(routeSettings).values(data).returning();
+      result = created;
+    }
+    await db.update(routeSettings)
+      .set({ globalUrls: data.globalUrls })
+      .where(and(eq(routeSettings.route, data.route)));
+    return result;
+  }
+
+  async getRouteSettings(route: string, width: number): Promise<RouteSettings | undefined> {
+    const all = await db.select().from(routeSettings).where(eq(routeSettings.route, route));
+    if (all.length === 0) return undefined;
+    let closest = all[0];
+    let minDiff = Math.abs(all[0].width - width);
+    for (const row of all) {
+      const diff = Math.abs(row.width - width);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = row;
+      }
+    }
+    return closest;
+  }
+
+  async getAllRouteSettings(route: string): Promise<RouteSettings[]> {
+    return db.select().from(routeSettings).where(eq(routeSettings.route, route)).orderBy(asc(routeSettings.width));
   }
 }
 

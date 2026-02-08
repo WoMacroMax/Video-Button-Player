@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertPlaylistItemSchema } from "@shared/schema";
+import { z } from "zod";
 
 interface YouTubeSearchResult {
   videoId: string;
@@ -53,6 +54,41 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Failed to remove from playlist:", err);
       res.status(500).json({ error: "Failed to remove from playlist" });
+    }
+  });
+
+  const saveSettingsSchema = z.object({
+    route: z.string(),
+    width: z.number().int().positive(),
+    settings: z.record(z.unknown()),
+    globalUrls: z.record(z.unknown()),
+  });
+
+  app.post("/api/route-settings", async (req, res) => {
+    try {
+      const parsed = saveSettingsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      const saved = await storage.saveRouteSettings(parsed.data);
+      res.json(saved);
+    } catch (err) {
+      console.error("Failed to save route settings:", err);
+      res.status(500).json({ error: "Failed to save settings" });
+    }
+  });
+
+  app.get("/api/route-settings/:route", async (req, res) => {
+    try {
+      const route = req.params.route;
+      const width = parseInt(req.query.width as string, 10);
+      if (isNaN(width)) return res.status(400).json({ error: "width query param required" });
+      const settings = await storage.getRouteSettings(route, width);
+      if (!settings) return res.json(null);
+      res.json(settings);
+    } catch (err) {
+      console.error("Failed to get route settings:", err);
+      res.status(500).json({ error: "Failed to get settings" });
     }
   });
 

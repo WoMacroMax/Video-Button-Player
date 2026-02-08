@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Music, Film, X, GripHorizontal, ImageIcon, Minus, Plus, QrCode } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Music, Film, X, GripHorizontal, ImageIcon, Minus, Plus, QrCode, Save } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
@@ -285,6 +287,143 @@ export default function PlayPage() {
   const progressIntervalRef = useRef<number | null>(null);
   const isSeeking = useRef(false);
   const autoPlayAttempted = useRef(false);
+
+  const { toast } = useToast();
+  const settingsLoadedRef = useRef(false);
+
+  const collectSettings = useCallback(() => {
+    const settings: Record<string, unknown> = {
+      title, buttonLabel, buttonColor, buttonPosX, buttonPosY, buttonScale,
+      visitModalWidth, qrButtonPosY, qrButtonVisible, qrButtonColor,
+      ctaAsButton, ctaX, ctaY, ctaScale, ctaVisible, ctaFadeInSeconds,
+      ctaShape, ctaBorderColor, ctaBorderThickness, ctaShadow3d, ctaGlow,
+      volume, isMuted, isLooping, loopStart, loopEnd,
+      shape, containerRounded, scale, containerPosX, containerPosY,
+      containerWidth, containerHeight, lockViewportScrollY, lockViewportScrollX,
+      mediaZIndex, bgColor, borderColor, containerVisible,
+      displayMode,
+      iframe1PosX, iframe1PosY, iframe1Scale, iframe1Width, iframe1Height, iframe1Visible,
+      iframe1Rounded, lockIframe1ScrollY, lockIframe1ScrollX, iframe1ZIndex,
+      iframe2PosX, iframe2PosY, iframe2Scale, iframe2Width, iframe2Height, iframe2Visible,
+      iframe2Rounded, lockIframe2ScrollY, lockIframe2ScrollX, iframe2ZIndex,
+    };
+    const globalUrls: Record<string, string> = {
+      buttonUrl, audioUrl: audioUrl || "",
+      ctaImageUrl, imageUrl, iframe1Url, iframe2Url,
+    };
+    return { settings, globalUrls };
+  }, [title, buttonLabel, buttonColor, buttonPosX, buttonPosY, buttonScale,
+    visitModalWidth, qrButtonPosY, qrButtonVisible, qrButtonColor,
+    ctaAsButton, ctaX, ctaY, ctaScale, ctaVisible, ctaFadeInSeconds,
+    ctaShape, ctaBorderColor, ctaBorderThickness, ctaShadow3d, ctaGlow,
+    volume, isMuted, isLooping, loopStart, loopEnd,
+    shape, containerRounded, scale, containerPosX, containerPosY,
+    containerWidth, containerHeight, lockViewportScrollY, lockViewportScrollX,
+    mediaZIndex, bgColor, borderColor, containerVisible,
+    displayMode,
+    iframe1PosX, iframe1PosY, iframe1Scale, iframe1Width, iframe1Height, iframe1Visible,
+    iframe1Rounded, lockIframe1ScrollY, lockIframe1ScrollX, iframe1ZIndex,
+    iframe2PosX, iframe2PosY, iframe2Scale, iframe2Width, iframe2Height, iframe2Visible,
+    iframe2Rounded, lockIframe2ScrollY, lockIframe2ScrollX, iframe2ZIndex,
+    buttonUrl, audioUrl, ctaImageUrl, imageUrl, iframe1Url, iframe2Url]);
+
+  const handleSaveSettings = useCallback(async () => {
+    const width = window.innerWidth;
+    const { settings, globalUrls } = collectSettings();
+    try {
+      await apiRequest("POST", "/api/route-settings", {
+        route: "play", width, settings, globalUrls,
+      });
+      toast({ title: "Settings saved", description: `Saved for width ${width}px` });
+    } catch {
+      toast({ title: "Save failed", description: "Could not save settings", variant: "destructive" });
+    }
+  }, [collectSettings, toast]);
+
+  const applySettings = useCallback((data: { settings: Record<string, unknown>; globalUrls: Record<string, string> }) => {
+    const s = data.settings;
+    const u = data.globalUrls;
+    if (s.title !== undefined) setTitle(s.title as string);
+    if (s.buttonLabel !== undefined) setButtonLabel(s.buttonLabel as string);
+    if (s.buttonColor !== undefined) setButtonColor(s.buttonColor as string);
+    if (s.buttonPosX !== undefined) setButtonPosX(s.buttonPosX as number);
+    if (s.buttonPosY !== undefined) setButtonPosY(s.buttonPosY as number);
+    if (s.buttonScale !== undefined) setButtonScale(s.buttonScale as number[]);
+    if (s.visitModalWidth !== undefined) setVisitModalWidth(s.visitModalWidth as number);
+    if (s.qrButtonPosY !== undefined) setQrButtonPosY(s.qrButtonPosY as number);
+    if (s.qrButtonVisible !== undefined) setQrButtonVisible(s.qrButtonVisible as boolean);
+    if (s.qrButtonColor !== undefined) setQrButtonColor(s.qrButtonColor as string);
+    if (s.ctaAsButton !== undefined) setCtaAsButton(s.ctaAsButton as boolean);
+    if (s.ctaX !== undefined) setCtaX(s.ctaX as number);
+    if (s.ctaY !== undefined) setCtaY(s.ctaY as number);
+    if (s.ctaScale !== undefined) setCtaScale(s.ctaScale as number[]);
+    if (s.ctaVisible !== undefined) setCtaVisible(s.ctaVisible as boolean);
+    if (s.ctaFadeInSeconds !== undefined) setCtaFadeInSeconds(s.ctaFadeInSeconds as number);
+    if (s.ctaShape !== undefined) setCtaShape(s.ctaShape as "circle" | "oval" | "square" | "rectangle");
+    if (s.ctaBorderColor !== undefined) setCtaBorderColor(s.ctaBorderColor as string);
+    if (s.ctaBorderThickness !== undefined) setCtaBorderThickness(s.ctaBorderThickness as number);
+    if (s.ctaShadow3d !== undefined) setCtaShadow3d(s.ctaShadow3d as boolean);
+    if (s.ctaGlow !== undefined) setCtaGlow(s.ctaGlow as boolean);
+    if (s.volume !== undefined) setVolume(s.volume as number[]);
+    if (s.isMuted !== undefined) setIsMuted(s.isMuted as boolean);
+    if (s.isLooping !== undefined) setIsLooping(s.isLooping as boolean);
+    if (s.loopStart !== undefined) setLoopStart(s.loopStart as string);
+    if (s.loopEnd !== undefined) setLoopEnd(s.loopEnd as string);
+    if (s.shape !== undefined) setShape(s.shape as ContainerShape);
+    if (s.containerRounded !== undefined) setContainerRounded(s.containerRounded as boolean);
+    if (s.scale !== undefined) setScale(s.scale as number[]);
+    if (s.containerPosX !== undefined) setContainerPosX(s.containerPosX as number);
+    if (s.containerPosY !== undefined) setContainerPosY(s.containerPosY as number);
+    if (s.containerWidth !== undefined) setContainerWidth(s.containerWidth as number[]);
+    if (s.containerHeight !== undefined) setContainerHeight(s.containerHeight as number[]);
+    if (s.lockViewportScrollY !== undefined) setLockViewportScrollY(s.lockViewportScrollY as boolean);
+    if (s.lockViewportScrollX !== undefined) setLockViewportScrollX(s.lockViewportScrollX as boolean);
+    if (s.mediaZIndex !== undefined) setMediaZIndex(s.mediaZIndex as number);
+    if (s.bgColor !== undefined) setBgColor(s.bgColor as string);
+    if (s.borderColor !== undefined) setBorderColor(s.borderColor as string);
+    if (s.containerVisible !== undefined) setContainerVisible(s.containerVisible as boolean);
+    if (s.displayMode !== undefined) setDisplayMode(s.displayMode as "visualizer" | "image");
+    if (s.iframe1PosX !== undefined) setIframe1PosX(s.iframe1PosX as number);
+    if (s.iframe1PosY !== undefined) setIframe1PosY(s.iframe1PosY as number);
+    if (s.iframe1Scale !== undefined) setIframe1Scale(s.iframe1Scale as number[]);
+    if (s.iframe1Width !== undefined) setIframe1Width(s.iframe1Width as number[]);
+    if (s.iframe1Height !== undefined) setIframe1Height(s.iframe1Height as number[]);
+    if (s.iframe1Visible !== undefined) setIframe1Visible(s.iframe1Visible as boolean);
+    if (s.iframe1Rounded !== undefined) setIframe1Rounded(s.iframe1Rounded as boolean);
+    if (s.lockIframe1ScrollY !== undefined) setLockIframe1ScrollY(s.lockIframe1ScrollY as boolean);
+    if (s.lockIframe1ScrollX !== undefined) setLockIframe1ScrollX(s.lockIframe1ScrollX as boolean);
+    if (s.iframe1ZIndex !== undefined) setIframe1ZIndex(s.iframe1ZIndex as number);
+    if (s.iframe2PosX !== undefined) setIframe2PosX(s.iframe2PosX as number);
+    if (s.iframe2PosY !== undefined) setIframe2PosY(s.iframe2PosY as number);
+    if (s.iframe2Scale !== undefined) setIframe2Scale(s.iframe2Scale as number[]);
+    if (s.iframe2Width !== undefined) setIframe2Width(s.iframe2Width as number[]);
+    if (s.iframe2Height !== undefined) setIframe2Height(s.iframe2Height as number[]);
+    if (s.iframe2Visible !== undefined) setIframe2Visible(s.iframe2Visible as boolean);
+    if (s.iframe2Rounded !== undefined) setIframe2Rounded(s.iframe2Rounded as boolean);
+    if (s.lockIframe2ScrollY !== undefined) setLockIframe2ScrollY(s.lockIframe2ScrollY as boolean);
+    if (s.lockIframe2ScrollX !== undefined) setLockIframe2ScrollX(s.lockIframe2ScrollX as boolean);
+    if (s.iframe2ZIndex !== undefined) setIframe2ZIndex(s.iframe2ZIndex as number);
+    if (u.buttonUrl !== undefined) setButtonUrl(u.buttonUrl);
+    if (u.audioUrl !== undefined) setAudioUrl(u.audioUrl);
+    if (u.ctaImageUrl !== undefined) setCtaImageUrl(u.ctaImageUrl);
+    if (u.imageUrl !== undefined) setImageUrl(u.imageUrl);
+    if (u.iframe1Url !== undefined) setIframe1Url(u.iframe1Url);
+    if (u.iframe2Url !== undefined) setIframe2Url(u.iframe2Url);
+  }, []);
+
+  useEffect(() => {
+    if (settingsLoadedRef.current) return;
+    settingsLoadedRef.current = true;
+    const width = window.innerWidth;
+    fetch(`/api/route-settings/play?width=${width}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.settings) {
+          applySettings({ settings: data.settings as Record<string, unknown>, globalUrls: (data.globalUrls || {}) as Record<string, string> });
+        }
+      })
+      .catch(() => {});
+  }, [applySettings]);
 
   useEffect(() => {
     if (audioUrl.trim() && audioHistory.length === 0) {
@@ -1185,6 +1324,11 @@ export default function PlayPage() {
                 </div>
               </div>
             </div>
+
+            <Button onClick={handleSaveSettings} className="w-full mt-4" data-testid="button-save-settings">
+              <Save className="w-4 h-4 mr-2" />
+              Save Settings
+            </Button>
           </div>
           </DraggableResizablePanel>
         </SheetContent>

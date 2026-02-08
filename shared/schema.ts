@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -34,3 +34,18 @@ export const insertPlaylistItemSchema = createInsertSchema(playlistItems).omit({
 
 export type InsertPlaylistItem = z.infer<typeof insertPlaylistItemSchema>;
 export type PlaylistItem = typeof playlistItems.$inferSelect;
+
+export const routeSettings = pgTable("route_settings", {
+  id: serial("id").primaryKey(),
+  route: text("route").notNull(),
+  width: integer("width").notNull(),
+  settings: jsonb("settings").notNull(),
+  globalUrls: jsonb("global_urls").notNull().default({}),
+});
+
+export const insertRouteSettingsSchema = createInsertSchema(routeSettings).omit({
+  id: true,
+});
+
+export type InsertRouteSettings = z.infer<typeof insertRouteSettingsSchema>;
+export type RouteSettings = typeof routeSettings.$inferSelect;
