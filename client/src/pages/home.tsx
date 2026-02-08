@@ -1508,7 +1508,7 @@ export default function Home({ standalone }: { standalone?: boolean } = {}) {
           aria-label="Go to Play (audio) page"
           asChild
         >
-          <a href="/play" data-testid="button-launch-play">
+          <a href="/play/config" data-testid="button-launch-play">
             <Headphones className="w-6 h-6" />
           </a>
         </Button>

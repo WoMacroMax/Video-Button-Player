@@ -2,12 +2,14 @@
 
 ## Overview
 
-A media container web app with two routes: `/view` for YouTube videos and `/play` for audio files (mp3, mp4, wav, ogg, etc.). Both routes feature interactive button containers that redirect users to an external website, with comprehensive customization options including shape control, scaling, 3D shadows, color pickers, loop controls, transport controls, volume management, and visibility toggle with inline controls.
+A media container web app with view and play routes: `/view` and `/view/config` for YouTube videos; `/play` and `/play/config` for audio files (mp3, mp4, wav, ogg, etc.). Both feature interactive button containers that redirect users to an external website, with comprehensive customization options including shape control, scaling, 3D shadows, color pickers, loop controls, transport controls, volume management, and visibility toggle with inline controls.
 
 ## Routes
-- `/view` — YouTube video player using YouTube IFrame API (`client/src/pages/home.tsx`)
-- `/play` — Audio file player using HTML5 `<audio>` element with Web Audio API visualizer (`client/src/pages/play.tsx`)
-- `/` — Redirects to `/view`
+- `/view` — Standalone YouTube view (no settings overlay)
+- `/view/config` — YouTube video player with settings (YouTube IFrame API, `client/src/pages/home.tsx`)
+- `/play` — Standalone audio play (no settings overlay)
+- `/play/config` — Audio file player with settings (HTML5 `<audio>` + Web Audio API visualizer, `client/src/pages/play.tsx`)
+- `/` — Redirects to `/view/config`
 
 ## User Preferences
 

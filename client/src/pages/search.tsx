@@ -233,7 +233,7 @@ export default function SearchPage() {
   const handleExportToView = useCallback(() => {
     if (!videoUrl.trim()) return;
     saveUrlToHistory(VIEW_URLS_KEY, videoUrl);
-    navigate("/view");
+    navigate("/view/config");
   }, [videoUrl, navigate]);
 
   useEffect(() => {

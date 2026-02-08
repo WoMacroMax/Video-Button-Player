@@ -1349,7 +1349,7 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
           aria-label="Go to View (video) page"
           asChild
         >
-          <a href="/view" data-testid="button-launch-view">
+          <a href="/view/config" data-testid="button-launch-view">
             <Film className="w-6 h-6" />
           </a>
         </Button>
