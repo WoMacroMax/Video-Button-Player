@@ -12,7 +12,9 @@ import SearchPage from "@/pages/search";
 function Router() {
   return (
     <Switch>
+      <Route path="/view/standalone">{() => <Home standalone />}</Route>
       <Route path="/view" component={Home} />
+      <Route path="/play/standalone">{() => <PlayPage standalone />}</Route>
       <Route path="/play" component={PlayPage} />
       <Route path="/stem" component={StemPage} />
       <Route path="/search" component={SearchPage} />

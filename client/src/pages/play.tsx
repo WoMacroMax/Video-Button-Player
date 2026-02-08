@@ -192,7 +192,7 @@ function AudioVisualizer({ audioRef, isPlaying }: { audioRef: React.RefObject<HT
   return <canvas ref={canvasRef} width={280} height={280} className="absolute inset-0 w-full h-full" />;
 }
 
-export default function PlayPage() {
+export default function PlayPage({ standalone }: { standalone?: boolean } = {}) {
   const [isHovered, setIsHovered] = useState(false);
   const [title, setTitle] = useState("Click the Audio Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
@@ -532,6 +532,7 @@ export default function PlayPage() {
     }
   }, [volume]);
 
+  // Mute is independent of play: only toggle sound, never play/pause
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.muted = isMuted;
@@ -578,7 +579,7 @@ export default function PlayPage() {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (buttonUrl) setVisitModalOpen(true); }
   }, [buttonUrl]);
   const handleMuteToggle = useCallback((checked: boolean) => {
-    setIsMuted(checked);
+    setIsMuted(checked); // Mute only: does not affect play/stop
   }, []);
   const handlePlayToggle = useCallback(() => { setIsPlaying((prev) => !prev); }, []);
   const handleLoopToggle = useCallback((checked: boolean) => { setIsLooping(checked); }, []);
@@ -637,6 +638,7 @@ export default function PlayPage() {
     <div className="min-h-screen flex items-center justify-center p-5 relative" style={{ backgroundColor: bgColor }}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" crossOrigin="anonymous" />
 
+      {!standalone && (
       <div className="absolute top-4 left-4 right-4 flex flex-row items-center gap-2 z-10 flex-wrap">
         <Sheet open={settingsOpen} onOpenChange={setSettingsOpen} modal={false}>
           <SheetTrigger asChild>
@@ -1376,6 +1378,7 @@ export default function PlayPage() {
           {isPlaying ? <Square className="w-5 h-5" /> : <Play className="w-5 h-5" />}
         </Button>
       </div>
+      )}
 
       {stemModalOpen && (
         <StemModal
@@ -1486,6 +1489,7 @@ export default function PlayPage() {
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); } }}
                   className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
                   aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+                  title={isMuted ? "Unmute (sound only, does not change play/stop)" : "Mute (sound only, does not change play/stop)"}
                   data-testid="button-mute-overlay"
                 >
                   {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -1871,7 +1875,7 @@ function HiddenModeControls({
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 items-start w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start w-full">
           <div className="flex flex-col items-center gap-2 justify-self-start">
             {isLooping && (
               <>
@@ -1919,7 +1923,7 @@ function HiddenModeControls({
               </>
             )}
           </div>
-          <div className="flex flex-col items-center gap-2 justify-self-end" data-testid="volume-control-vertical">
+          <div className="hidden md:flex flex-col items-center gap-2 justify-self-end" data-testid="volume-control-vertical">
             <div className="flex items-center justify-between w-full max-w-[48px]">
               <span className="text-white/60 text-xs">{volume[0]}%</span>
             </div>
@@ -1941,11 +1945,37 @@ function HiddenModeControls({
               onClick={onMuteToggle}
               className="text-white bg-white/20 hover:bg-white/30 rounded-full w-9 h-9 border border-white/30"
               aria-label={isMuted ? "Unmute" : "Mute"}
+              title={isMuted ? "Unmute (sound only, does not change play/stop)" : "Mute (sound only, does not change play/stop)"}
               data-testid="button-hidden-mute"
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </Button>
           </div>
+        </div>
+
+        <div className="flex md:hidden flex-row items-center gap-3 w-full pt-2 border-t border-white/20" data-testid="volume-control-horizontal">
+          <span className="text-white/60 text-xs w-10 shrink-0">{volume[0]}%</span>
+          <Slider
+            orientation="horizontal"
+            variant="volume"
+            value={volume}
+            onValueChange={onVolumeChange}
+            max={100}
+            step={1}
+            className="flex-1"
+            data-testid="slider-hidden-volume-mobile"
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onMuteToggle}
+            className="text-white bg-white/20 hover:bg-white/30 rounded-full w-9 h-9 shrink-0 border border-white/30"
+            aria-label={isMuted ? "Unmute" : "Mute"}
+            title={isMuted ? "Unmute (sound only, does not change play/stop)" : "Mute (sound only, does not change play/stop)"}
+            data-testid="button-hidden-mute-mobile"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </Button>
         </div>
 
       </div>
