@@ -1626,23 +1626,58 @@ export default function Home() {
         </div>
       </div>
 
-      {containerVisible && qrButtonVisible && (
-        <button
-          type="button"
-          onClick={() => setQrModalOpen(true)}
-          className="fixed z-[14] w-14 h-14 rounded-full border-0 flex items-center justify-center text-white shadow-lg cursor-pointer"
+      {qrButtonVisible && (
+        <div
+          className="fixed z-[14] flex flex-row items-center gap-3"
           style={{
             left: "50%",
             top: `${qrButtonPosY}%`,
             transform: "translate(-50%, -50%)",
-            background: qrButtonColor,
-            boxShadow: `0 4px 14px ${qrButtonColor}66`,
           }}
-          aria-label="Share page (QR)"
-          data-testid="button-qr-share"
+          data-testid="qr-share-grid"
+          role="group"
+          aria-label="QR Share grid"
         >
-          <QrCode className="w-7 h-7" />
-        </button>
+          <button
+            type="button"
+            onClick={() => setContainerVisible((prev) => !prev)}
+            className="w-12 h-12 rounded-full border-0 flex items-center justify-center text-white shadow-lg cursor-pointer flex-shrink-0"
+            style={{
+              background: "#2563eb",
+              boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
+            }}
+            aria-label={containerVisible ? "Hide container" : "Show container"}
+            data-testid="button-qr-grid-visibility"
+          >
+            {containerVisible ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setQrModalOpen(true)}
+            className="w-14 h-14 rounded-full border-0 flex items-center justify-center text-white shadow-lg cursor-pointer flex-shrink-0"
+            style={{
+              background: qrButtonColor,
+              boxShadow: `0 4px 14px ${qrButtonColor}66`,
+            }}
+            aria-label="Share page (QR)"
+            data-testid="button-qr-share"
+          >
+            <QrCode className="w-7 h-7" />
+          </button>
+          <button
+            type="button"
+            onClick={handlePlayToggle}
+            className="w-12 h-12 rounded-full border-0 flex items-center justify-center text-white shadow-lg cursor-pointer flex-shrink-0"
+            style={{
+              background: isPlaying ? "#dc2626" : "#22c55e",
+              boxShadow: isPlaying ? "0 4px 14px rgba(220, 38, 38, 0.4)" : "0 4px 14px rgba(34, 197, 94, 0.4)",
+            }}
+            aria-label={isPlaying ? "Stop" : "Play"}
+            data-testid="button-qr-grid-play"
+          >
+            {isPlaying ? <Square className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+          </button>
+        </div>
       )}
 
       {qrModalOpen && <QRShareModal shareUrl={typeof window !== "undefined" ? window.location.href : ""} onClose={() => setQrModalOpen(false)} />}
