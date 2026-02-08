@@ -255,7 +255,20 @@ export default function PlayPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [stemModalOpen, setStemModalOpen] = useState(false);
   const [visitModalOpen, setVisitModalOpen] = useState(false);
-  const [visitModalWidth, setVisitModalWidth] = useState(100);
+  const [visitModalWidth, setVisitModalWidth] = useState(50);
+  const [ctaAsButton, setCtaAsButton] = useState(false);
+  const [ctaX, setCtaX] = useState(50);
+  const [ctaY, setCtaY] = useState(20);
+  const [ctaPosition, setCtaPosition] = useState(50);
+  const [ctaScale, setCtaScale] = useState([100]);
+  const [ctaVisible, setCtaVisible] = useState(true);
+  const [ctaFadeInSeconds, setCtaFadeInSeconds] = useState(1);
+  const [ctaImageUrl, setCtaImageUrl] = useState("");
+  const [ctaShape, setCtaShape] = useState<"circle" | "oval" | "square" | "rectangle">("circle");
+  const [ctaBorderColor, setCtaBorderColor] = useState("#ffffff33");
+  const [ctaBorderThickness, setCtaBorderThickness] = useState(4);
+  const [ctaShadow3d, setCtaShadow3d] = useState(true);
+  const [ctaFadeComplete, setCtaFadeComplete] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const stemIframeRef = useRef<HTMLIFrameElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -336,6 +349,19 @@ export default function PlayPage() {
       audio.removeEventListener("durationchange", onDurationChange);
     };
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (!ctaAsButton) {
+      setCtaFadeComplete(false);
+      return;
+    }
+    if (ctaFadeInSeconds <= 0) {
+      setCtaFadeComplete(true);
+      return;
+    }
+    const t = setTimeout(() => setCtaFadeComplete(true), ctaFadeInSeconds * 1000);
+    return () => clearTimeout(t);
+  }, [ctaAsButton, ctaFadeInSeconds]);
 
   useEffect(() => {
     if (!playerReady || !audioRef.current) return;
@@ -633,8 +659,83 @@ export default function PlayPage() {
                   <Label className="text-xs">Launch modal width (%)</Label>
                   <span className="text-xs text-muted-foreground">{visitModalWidth}%</span>
                 </div>
-                <Slider value={[visitModalWidth]} onValueChange={(v) => setVisitModalWidth(v[0])} min={50} max={100} step={5} className="w-full" data-testid="slider-visit-modal-width" />
+                <Slider value={[visitModalWidth]} onValueChange={(v) => setVisitModalWidth(v[0])} min={30} max={100} step={5} className="w-full" data-testid="slider-visit-modal-width" />
               </div>
+            </div>
+
+            <div className="space-y-4 p-3 bg-muted rounded-md">
+              <Label className="text-sm font-medium">CTA section</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Use section as clickable button</Label>
+                <Switch checked={ctaAsButton} onCheckedChange={setCtaAsButton} data-testid="switch-cta-as-button" />
+              </div>
+              {ctaAsButton && (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">X (%)</Label>
+                      <span className="text-xs text-muted-foreground">{ctaX}</span>
+                    </div>
+                    <Slider value={[ctaX]} onValueChange={(v) => setCtaX(v[0])} min={0} max={100} step={0.5} className="w-full" data-testid="slider-cta-x" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Y (%)</Label>
+                      <span className="text-xs text-muted-foreground">{ctaY}</span>
+                    </div>
+                    <Slider value={[ctaY]} onValueChange={(v) => setCtaY(v[0])} min={0} max={100} step={0.5} className="w-full" data-testid="slider-cta-y" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Position (%)</Label>
+                      <span className="text-xs text-muted-foreground">{ctaPosition}</span>
+                    </div>
+                    <Slider value={[ctaPosition]} onValueChange={(v) => setCtaPosition(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-cta-position" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Scale (%)</Label>
+                      <span className="text-xs text-muted-foreground">{ctaScale[0]}</span>
+                    </div>
+                    <Slider value={ctaScale} onValueChange={setCtaScale} min={25} max={200} step={5} className="w-full" data-testid="slider-cta-scale" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Visibility</Label>
+                    <Switch checked={ctaVisible} onCheckedChange={setCtaVisible} data-testid="switch-cta-visible" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Fade in (seconds)</Label>
+                      <span className="text-xs text-muted-foreground">{ctaFadeInSeconds}</span>
+                    </div>
+                    <Slider value={[ctaFadeInSeconds]} onValueChange={(v) => setCtaFadeInSeconds(v[0])} min={0} max={10} step={0.5} className="w-full" data-testid="slider-cta-fade-in" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Button image URL</Label>
+                    <Input value={ctaImageUrl} onChange={(e) => setCtaImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" className="text-xs" data-testid="input-cta-image-url" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Button shape</Label>
+                    <div className="grid grid-cols-4 gap-1">
+                      {(["circle", "oval", "square", "rectangle"] as const).map((s) => (
+                        <Button key={s} size="sm" variant={ctaShape === s ? "default" : "outline"} onClick={() => setCtaShape(s)} className="text-xs capitalize" data-testid={`button-cta-shape-${s}`}>{s}</Button>
+                      ))}
+                    </div>
+                  </div>
+                  <ColorPickerField label="Border color" color={ctaBorderColor} onChange={setCtaBorderColor} testId="color-cta-border" />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Border thickness</Label>
+                      <span className="text-xs text-muted-foreground">{ctaBorderThickness}px</span>
+                    </div>
+                    <Slider value={[ctaBorderThickness]} onValueChange={(v) => setCtaBorderThickness(v[0])} min={0} max={20} step={1} className="w-full" data-testid="slider-cta-border-thickness" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">3D shadow</Label>
+                    <Switch checked={ctaShadow3d} onCheckedChange={setCtaShadow3d} data-testid="switch-cta-shadow-3d" />
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -1123,22 +1224,44 @@ export default function PlayPage() {
         />
       )}
 
-      <div
-        className="grid grid-rows-[auto_1fr] w-full min-h-screen gap-0 text-center"
-        style={{ display: containerVisible ? "grid" : "none" }}
-      >
-        <div className="flex items-center justify-center pt-24 sm:pt-16 md:pt-6 pb-0 shrink-0">
-          <h1
-            className="text-white text-2xl md:text-3xl font-semibold"
-            style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
-            data-testid="text-title"
-          >
-            {title}
-          </h1>
-        </div>
-
-        <div className="relative w-full min-h-0 flex items-stretch justify-stretch">
+      <div className="relative w-full min-h-screen" style={{ display: containerVisible ? "block" : "none" }}>
+        {ctaAsButton && (
           <button
+            type="button"
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            className="absolute cursor-pointer border-none p-0 z-[15]"
+            style={{
+              left: `${ctaX}%`,
+              top: `${ctaY}%`,
+              width: "80%",
+              height: "70%",
+              transform: `translate(-50%, -50%) scale(${ctaScale[0] / 100})`,
+              opacity: ctaVisible ? (ctaFadeComplete || ctaFadeInSeconds <= 0 ? 1 : 0) : 0,
+              visibility: ctaVisible ? "visible" : "hidden",
+              transition: `opacity ${ctaFadeInSeconds}s ease-out`,
+              border: `${ctaBorderThickness}px solid ${ctaBorderColor}`,
+              borderRadius: ctaShape === "circle" || ctaShape === "oval" ? "50%" : ctaShape === "square" ? "0" : "12px",
+              background: ctaImageUrl ? `center/cover no-repeat url(${ctaImageUrl})` : "transparent",
+              boxShadow: ctaShadow3d ? "0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25)" : "none",
+            }}
+            aria-label={`Visit ${buttonUrl || "website"}`}
+            data-testid="cta-button"
+          />
+        )}
+        <div className="grid grid-rows-[auto_1fr] w-full min-h-screen gap-0 text-center">
+          <div className="flex items-center justify-center pt-24 sm:pt-16 md:pt-6 pb-0 shrink-0">
+            <h1
+              className="text-white text-2xl md:text-3xl font-semibold"
+              style={{ textShadow: "2px 2px 4px rgba(0, 0, 0, 0.2)" }}
+              data-testid="text-title"
+            >
+              {title}
+            </h1>
+          </div>
+
+          <div className="relative w-full min-h-0 flex items-stretch justify-stretch">
+            <button
             type="button"
             className={`absolute cursor-pointer bg-transparent border-none p-0 transition-transform duration-300 ${currentShape.widthClass} ${currentShape.heightClass}`}
             style={{
@@ -1689,15 +1812,28 @@ function VisitSiteModal({ url, width = 100, onClose }: { url: string; width?: nu
           onPointerUp={handlePointerUp}
           data-testid="visit-modal-handle"
         >
-          <button
-            type="button"
-            onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0"
-            aria-label="Close"
-            data-testid="button-visit-modal-close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center flex-shrink-0"
+              aria-label="Close"
+              data-testid="button-visit-modal-close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-yellow-400 text-black hover:bg-yellow-500 shrink-0"
+              aria-label="Open in new window"
+              data-testid="link-visit-modal-new-window"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
           <div className="flex-1 flex justify-center">
             <GripHorizontal className="w-8 h-5 text-muted-foreground" />
           </div>
