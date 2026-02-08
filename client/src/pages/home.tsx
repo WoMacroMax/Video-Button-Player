@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Film, Music, Headphones, Search, X, GripHorizontal, Minus, Plus } from "lucide-react";
+import { ArrowRight, Menu, Volume2, VolumeX, Play, Pause, Square, Repeat, Link, Clock, Maximize2, Palette, ExternalLink, Eye, EyeOff, SkipBack, SkipForward, Film, Music, Headphones, Search, X, GripHorizontal, Minus, Plus, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { MicroAdjustButton } from "@/components/ui/micro-adjust-button";
@@ -196,11 +197,14 @@ export default function Home() {
   const [buttonPosY, setButtonPosY] = useState(50);
   const [buttonScale, setButtonScale] = useState([100]);
   const [visitModalWidth, setVisitModalWidth] = useState(50);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrButtonPosY, setQrButtonPosY] = useState(92);
+  const [qrButtonVisible, setQrButtonVisible] = useState(true);
+  const [qrButtonColor, setQrButtonColor] = useState("#7c3aed");
   const [ctaAsButton, setCtaAsButton] = useState(false);
   const [ctaX, setCtaX] = useState(50);
   const [ctaY, setCtaY] = useState(20);
-  const [ctaPosition, setCtaPosition] = useState(50);
-  const [ctaScale, setCtaScale] = useState([100]);
+  const [ctaScale, setCtaScale] = useState([10]);
   const [ctaVisible, setCtaVisible] = useState(true);
   const [ctaFadeInSeconds, setCtaFadeInSeconds] = useState(1);
   const [ctaImageUrl, setCtaImageUrl] = useState("");
@@ -208,6 +212,7 @@ export default function Home() {
   const [ctaBorderColor, setCtaBorderColor] = useState("#ffffff33");
   const [ctaBorderThickness, setCtaBorderThickness] = useState(4);
   const [ctaShadow3d, setCtaShadow3d] = useState(true);
+  const [ctaGlow, setCtaGlow] = useState(false);
   const [ctaFadeComplete, setCtaFadeComplete] = useState(false);
   const [youtubeHistory, setYoutubeHistory] = useState<string[]>(() => loadUrlHistory(YOUTUBE_URLS_KEY));
   const [mp4History, setMp4History] = useState<string[]>(() => loadUrlHistory(MP4_URLS_KEY));
@@ -825,6 +830,22 @@ export default function Home() {
             </div>
 
             <div className="space-y-4 p-3 bg-muted rounded-md">
+              <Label className="text-sm font-medium">QR Share section</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Visibility</Label>
+                <Switch checked={qrButtonVisible} onCheckedChange={setQrButtonVisible} data-testid="switch-qr-button-visible" />
+              </div>
+              <ColorPickerField label="Color" color={qrButtonColor} onChange={setQrButtonColor} testId="color-qr-button" />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Y position (%)</Label>
+                  <span className="text-xs text-muted-foreground">{qrButtonPosY}</span>
+                </div>
+                <Slider value={[qrButtonPosY]} onValueChange={(v) => setQrButtonPosY(v[0])} min={0} max={100} step={0.5} className="w-full" data-testid="slider-qr-button-y" />
+              </div>
+            </div>
+
+            <div className="space-y-4 p-3 bg-muted rounded-md">
               <Label className="text-sm font-medium">CTA section</Label>
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Use section as clickable button</Label>
@@ -848,17 +869,10 @@ export default function Home() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs">Position (%)</Label>
-                      <span className="text-xs text-muted-foreground">{ctaPosition}</span>
-                    </div>
-                    <Slider value={[ctaPosition]} onValueChange={(v) => setCtaPosition(v[0])} min={0} max={100} step={1} className="w-full" data-testid="slider-cta-position" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
                       <Label className="text-xs">Scale (%)</Label>
                       <span className="text-xs text-muted-foreground">{ctaScale[0]}</span>
                     </div>
-                    <Slider value={ctaScale} onValueChange={setCtaScale} min={25} max={200} step={5} className="w-full" data-testid="slider-cta-scale" />
+                    <Slider value={ctaScale} onValueChange={setCtaScale} min={5} max={200} step={5} className="w-full" data-testid="slider-cta-scale" />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">Visibility</Label>
@@ -866,10 +880,14 @@ export default function Home() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs">Fade in (seconds)</Label>
+                      <Label className="text-xs" title="Duration for the fade-in visibility animation">Fade in (seconds)</Label>
                       <span className="text-xs text-muted-foreground">{ctaFadeInSeconds}</span>
                     </div>
                     <Slider value={[ctaFadeInSeconds]} onValueChange={(v) => setCtaFadeInSeconds(v[0])} min={0} max={10} step={0.5} className="w-full" data-testid="slider-cta-fade-in" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Glow animation</Label>
+                    <Switch checked={ctaGlow} onCheckedChange={setCtaGlow} data-testid="switch-cta-glow" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Button image URL</Label>
@@ -1423,7 +1441,7 @@ export default function Home() {
             type="button"
             onClick={handleClick}
             onKeyDown={handleKeyDown}
-            className="absolute cursor-pointer border-none p-0 z-[15]"
+            className={`absolute cursor-pointer border-none p-0 z-[15] ${ctaGlow ? "animate-cta-glow" : ""}`}
             style={{
               left: `${ctaX}%`,
               top: `${ctaY}%`,
@@ -1436,7 +1454,7 @@ export default function Home() {
               border: `${ctaBorderThickness}px solid ${ctaBorderColor}`,
               borderRadius: ctaShape === "circle" || ctaShape === "oval" ? "50%" : ctaShape === "square" ? "0" : "12px",
               background: ctaImageUrl ? `center/cover no-repeat url(${ctaImageUrl})` : "transparent",
-              boxShadow: ctaShadow3d ? "0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25)" : "none",
+              boxShadow: !ctaGlow && ctaShadow3d ? "0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25)" : !ctaGlow ? "none" : undefined,
             }}
             aria-label={`Visit ${buttonUrl || "website"}`}
             data-testid="cta-button"
@@ -1540,8 +1558,8 @@ export default function Home() {
                     top: `${buttonPosY}%`,
                     transform: `translate(-50%, -50%) scale(${buttonScale[0] / 100})`,
                     backgroundColor: buttonColor,
-                    opacity: isHovered ? 1 : 0,
-                    visibility: isHovered ? "visible" : "hidden",
+                    opacity: isHovered && (!ctaAsButton || !ctaVisible) ? 1 : 0,
+                    visibility: isHovered && (!ctaAsButton || !ctaVisible) ? "visible" : "hidden",
                   }}
                   data-testid="text-click-indicator"
                 >
@@ -1607,6 +1625,27 @@ export default function Home() {
         </div>
         </div>
       </div>
+
+      {containerVisible && qrButtonVisible && (
+        <button
+          type="button"
+          onClick={() => setQrModalOpen(true)}
+          className="fixed z-[14] w-14 h-14 rounded-full border-0 flex items-center justify-center text-white shadow-lg cursor-pointer"
+          style={{
+            left: "50%",
+            top: `${qrButtonPosY}%`,
+            transform: "translate(-50%, -50%)",
+            background: qrButtonColor,
+            boxShadow: `0 4px 14px ${qrButtonColor}66`,
+          }}
+          aria-label="Share page (QR)"
+          data-testid="button-qr-share"
+        >
+          <QrCode className="w-7 h-7" />
+        </button>
+      )}
+
+      {qrModalOpen && <QRShareModal shareUrl={typeof window !== "undefined" ? window.location.href : ""} onClose={() => setQrModalOpen(false)} />}
 
       {!containerVisible && (
         <HiddenModeControls
@@ -1935,6 +1974,125 @@ function HiddenModeControls({
 
 const LAUNCH_MODAL_SLIDE_MS = 500;
 const VISIT_MODAL_CLOSE_THRESHOLD = 70; // sheet top % - when released past this, close and release
+
+function QRShareModal({ shareUrl, onClose }: { shareUrl: string; onClose: () => void }) {
+  const [sheetY, setSheetY] = useState(10);
+  const [isDragging, setIsDragging] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const startY = useRef(0);
+  const startSheetY = useRef(0);
+  const sheetYRef = useRef(sheetY);
+  useEffect(() => { sheetYRef.current = sheetY; }, [sheetY]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setHasEntered(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+  }, [isClosing]);
+
+  useEffect(() => {
+    if (!isClosing) return;
+    const t = setTimeout(() => { onCloseRef.current(); }, LAUNCH_MODAL_SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [isClosing]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    setIsDragging(true);
+    startY.current = e.clientY;
+    startSheetY.current = sheetY;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [sheetY]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const deltaPercent = ((e.clientY - startY.current) / window.innerHeight) * 100;
+    const newY = Math.max(0, Math.min(85, startSheetY.current + deltaPercent));
+    setSheetY(newY);
+  }, [isDragging]);
+
+  const handlePointerUp = useCallback(() => {
+    setIsDragging(false);
+    if (sheetYRef.current >= VISIT_MODAL_CLOSE_THRESHOLD) setIsClosing(true);
+  }, []);
+
+  const transition = isDragging ? "none" : "transform 0.5s ease-out, top 0.3s ease";
+  const slideDown = !hasEntered || isClosing;
+
+  const handleCopyLink = useCallback(() => {
+    if (shareUrl) navigator.clipboard.writeText(shareUrl).catch(() => {});
+  }, [shareUrl]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60" onClick={handleClose} data-testid="qr-modal-overlay" aria-label="QR Share modal">
+      <div
+        className="absolute left-1/2 bottom-0 bg-background rounded-t-xl flex flex-col max-h-[85vh]"
+        style={{
+          left: "50%",
+          width: "min(400px, 95vw)",
+          top: `${sheetY}%`,
+          transition,
+          transform: slideDown ? "translate(-50%, 100%)" : "translate(-50%, 0)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="qr-modal"
+      >
+        <div
+          className="flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing select-none flex-shrink-0 border-b"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          data-testid="qr-modal-handle"
+        >
+          <div className="w-8 h-8" />
+          <div className="flex-1 flex justify-center">
+            <GripHorizontal className="w-8 h-5 text-muted-foreground" />
+          </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center flex-shrink-0 hover:bg-red-600"
+            aria-label="Close"
+            data-testid="button-qr-modal-close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto flex-1">
+          <h2 className="text-lg font-bold text-center mb-4">Share This Page</h2>
+          <div className="flex flex-col items-center gap-4">
+            <div className="bg-white p-3 rounded-lg inline-block">
+              <QRCodeSVG value={shareUrl} size={200} level="M" />
+            </div>
+            <div className="w-full">
+              <div className="bg-muted rounded-md px-3 py-2 text-sm text-muted-foreground break-all" data-testid="qr-modal-link">
+                {shareUrl}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="w-full py-3 rounded-lg text-white font-semibold transition-opacity hover:opacity-90"
+              style={{ background: "linear-gradient(90deg, #22c55e 0%, #16a34a 100%)" }}
+              data-testid="button-qr-copy-link"
+            >
+              Copy Link
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function VisitSiteModal({ url, width = 100, onClose }: { url: string; width?: number; onClose: () => void }) {
   const [sheetY, setSheetY] = useState(10);
