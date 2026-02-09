@@ -25,6 +25,7 @@ interface DraggableResizablePanelProps {
   maxWidth?: number;
   maxHeight?: number;
   className?: string;
+  stickyHeader?: React.ReactNode;
 }
 
 export function DraggableResizablePanel({
@@ -41,6 +42,7 @@ export function DraggableResizablePanel({
   maxWidth = MAX_WIDTH,
   maxHeight = MAX_HEIGHT,
   className,
+  stickyHeader,
 }: DraggableResizablePanelProps) {
   const [x, setX] = React.useState(defaultX);
   const [y, setY] = React.useState(defaultY);
@@ -145,6 +147,11 @@ export function DraggableResizablePanel({
           <X className="h-4 w-4" />
         </button>
       </div>
+      {stickyHeader && (
+        <div className="flex-shrink-0 border-b bg-background px-4 py-3">
+          {stickyHeader}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">{children}</div>
       <div
         role="presentation"

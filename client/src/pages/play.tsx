@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DraggableResizablePanel } from "@/components/ui/draggable-resizable-panel";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const DEFAULT_AUDIO_URL = "https://xrwnptogkhxeyamjcxhd.supabase.co/storage/v1/object/public/attachments/1770396018869-OneDanceSnippet.mp4";
 
@@ -192,7 +193,7 @@ function AudioVisualizer({ audioRef, isPlaying }: { audioRef: React.RefObject<HT
   return <canvas ref={canvasRef} width={280} height={280} className="absolute inset-0 w-full h-full" />;
 }
 
-export default function PlayPage({ standalone }: { standalone?: boolean } = {}) {
+export default function PlayPage({ standalone, embed, config }: { standalone?: boolean; embed?: boolean; config?: boolean } = {}) {
   const [isHovered, setIsHovered] = useState(false);
   const [title, setTitle] = useState("Click the Audio Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
@@ -634,40 +635,239 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
   const currentShape = shapeStyles[shape];
   const scaleFactor = scale[0] / 100;
 
+  if (embed) {
+    return (
+      <div className="relative w-full min-h-screen" style={{ backgroundColor: bgColor }}>
+        <audio ref={audioRef} src={audioUrl} preload="metadata" crossOrigin="anonymous" />
+        {ctaAsButton && (
+          <button
+            type="button"
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            className={`absolute cursor-pointer border-none p-0 z-[15] ${ctaGlow ? "animate-cta-glow" : ""}`}
+            style={{
+              left: `${ctaX}%`,
+              top: `${ctaY}%`,
+              width: "80%",
+              height: "70%",
+              transform: `translate(-50%, -50%) scale(${ctaScale[0] / 100})`,
+              opacity: ctaVisible ? (ctaFadeComplete || ctaFadeInSeconds <= 0 ? 1 : 0) : 0,
+              visibility: ctaVisible ? "visible" : "hidden",
+              transition: `opacity ${ctaFadeInSeconds}s ease-out`,
+              border: `${ctaBorderThickness}px solid ${ctaBorderColor}`,
+              borderRadius: ctaShape === "circle" || ctaShape === "oval" ? "50%" : ctaShape === "square" ? "0" : "12px",
+              background: ctaImageUrl ? `center/cover no-repeat url(${ctaImageUrl})` : "transparent",
+              boxShadow: !ctaGlow && ctaShadow3d ? "0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25)" : !ctaGlow ? "none" : undefined,
+            }}
+            aria-label={`Visit ${buttonUrl || "website"}`}
+            data-testid="cta-button"
+          />
+        )}
+        <div className="relative w-full min-h-screen flex items-stretch justify-stretch">
+          <button
+            type="button"
+            className={`absolute cursor-pointer bg-transparent border-none p-0 transition-transform duration-300 ${currentShape.widthClass} ${currentShape.heightClass}`}
+            style={{
+              left: 0,
+              top: 0,
+              transform: `scale(${(scaleFactor * containerWidth[0]) / 100}, ${(scaleFactor * containerHeight[0]) / 100}) ${isHovered ? "translateY(-4px)" : "translateY(0)"}`,
+              transformOrigin: "top left",
+              zIndex: mediaZIndex,
+            }}
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            aria-label={`Visit ${buttonUrl || "website"}`}
+            data-testid="button-audio"
+          >
+            <div
+              ref={containerRef}
+              className="relative w-full h-full overflow-hidden transition-all duration-300"
+              style={{
+                borderRadius: containerRounded ? currentShape.borderRadius : "0",
+                boxShadow: isHovered
+                  ? `0 20px 60px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3), inset 0 -2px 6px rgba(0,0,0,0.2)`
+                  : `0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25), inset 0 -2px 6px rgba(0,0,0,0.15)`,
+                border: `4px solid ${borderColor}`,
+                background: "linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.8) 100%)",
+                animation: shape === "circle" && isPlaying ? "spin-record 4s linear infinite" : "none",
+              }}
+            >
+              {displayMode === "image" && imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt="Cover"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  data-testid="img-cover"
+                />
+              ) : (
+                <>
+                  <AudioVisualizer audioRef={audioRef} isPlaying={isPlaying} />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 5 }}>
+                    <Music className="w-12 h-12 md:w-16 md:h-16 text-white/30" />
+                  </div>
+                </>
+              )}
+
+              <div
+                className="absolute inset-0 z-20 pointer-events-none"
+                style={{
+                  animation: shape === "circle" && isPlaying ? "spin-record-reverse 4s linear infinite" : "none",
+                }}
+              >
+                <div
+                  className="absolute pointer-events-auto"
+                  style={{ bottom: "12%", right: "12%" }}
+                >
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); setIsMuted((m) => !m); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); } }}
+                    className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
+                    aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+                    title={isMuted ? "Unmute (sound only, does not change play/stop)" : "Mute (sound only, does not change play/stop)"}
+                    data-testid="button-mute-overlay"
+                  >
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </div>
+                </div>
+
+                <div
+                  className="absolute inset-0 z-10 transition-all duration-300 pointer-events-none"
+                  style={{
+                    background: isHovered
+                      ? "radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 70%)"
+                      : "radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)",
+                  }}
+                >
+                  <div
+                    className="absolute flex items-center gap-2 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-semibold text-xs md:text-sm transition-opacity duration-300 pointer-events-auto"
+                    style={{
+                      left: `${buttonPosX}%`,
+                      top: `${buttonPosY}%`,
+                      transform: `translate(-50%, -50%) scale(${buttonScale[0] / 100})`,
+                      backgroundColor: buttonColor,
+                      opacity: isHovered && (!ctaAsButton || !ctaVisible) ? 1 : 0,
+                      visibility: isHovered && (!ctaAsButton || !ctaVisible) ? "visible" : "hidden",
+                    }}
+                    data-testid="text-click-indicator"
+                  >
+                    <span>{buttonLabel}</span>
+                    <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {iframe1Visible && iframe1Url && (
+            <div
+              className="absolute pointer-events-auto"
+              style={{
+                left: `${iframe1PosX}%`,
+                top: `${iframe1PosY}%`,
+                transform: `translate(-50%, -50%) scale(${iframe1Scale[0] / 100})`,
+                width: `${iframe1Width[0]}px`,
+                height: `${iframe1Height[0]}px`,
+                borderRadius: iframe1Rounded ? "12px" : 0,
+                overflowX: lockIframe1ScrollX ? "hidden" : "auto",
+                overflowY: lockIframe1ScrollY ? "hidden" : "auto",
+                zIndex: iframe1ZIndex,
+              }}
+              data-testid="iframe1-container"
+            >
+              <iframe
+                src={iframe1Url}
+                className="w-full h-full border-0 shadow-lg"
+                title="iFrame Container 1"
+                allow="autoplay; fullscreen"
+                data-testid="iframe1"
+              />
+            </div>
+          )}
+
+          {iframe2Visible && iframe2Url && (
+            <div
+              className="absolute pointer-events-auto"
+              style={{
+                left: `${iframe2PosX}%`,
+                top: `${iframe2PosY}%`,
+                transform: `translate(-50%, -50%) scale(${iframe2Scale[0] / 100})`,
+                width: `${iframe2Width[0]}px`,
+                height: `${iframe2Height[0]}px`,
+                borderRadius: iframe2Rounded ? "12px" : 0,
+                overflowX: lockIframe2ScrollX ? "hidden" : "auto",
+                overflowY: lockIframe2ScrollY ? "hidden" : "auto",
+                zIndex: iframe2ZIndex,
+              }}
+              data-testid="iframe2-container"
+            >
+              <iframe
+                src={iframe2Url}
+                className="w-full h-full border-0 shadow-lg"
+                title="iFrame Container 2"
+                allow="autoplay; fullscreen"
+                data-testid="iframe2"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-5 relative" style={{ backgroundColor: bgColor }}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" crossOrigin="anonymous" />
 
-      {!standalone && (
+      {!embed && (
       <div className="absolute top-4 left-4 right-4 flex flex-row items-center gap-2 z-10 flex-wrap">
-        <Sheet open={settingsOpen} onOpenChange={setSettingsOpen} modal={false}>
-          <SheetTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="text-white scale-[1.2]"
-              aria-label="Open settings menu"
-              data-testid="button-menu"
-            >
-              <Menu className="w-6 h-6" />
-            </Button>
-          </SheetTrigger>
-        <SheetContent
-          side="left"
-          allowBackdropInteraction
-          className="!inset-0 !left-0 !top-0 !right-0 !bottom-0 !h-full !w-full !max-w-none !border-0 !p-0 !bg-transparent !shadow-none [&>button]:hidden"
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-white scale-[1.2]"
+          aria-label="Toggle settings menu"
+          onClick={() => setSettingsOpen(!settingsOpen)}
+          data-testid="button-menu"
         >
+          <Menu className="w-6 h-6" />
+        </Button>
+        {settingsOpen && (
           <DraggableResizablePanel
             onClose={() => setSettingsOpen(false)}
             title="Settings"
             description="Customize audio playback and button appearance"
+            stickyHeader={config ? (
+              <Button onClick={handleSaveSettings} className="w-full" data-testid="button-save-settings">
+                <Save className="w-4 h-4 mr-2" />
+                Save Settings
+              </Button>
+            ) : undefined}
           >
-          <div className="flex flex-col gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="audio-url-input" className="text-sm font-medium flex items-center gap-2">
-                <Link className="w-4 h-4" />
-                Audio URL
-              </Label>
+            <div className="flex flex-col gap-6">
+              {!config && (
+                <Button onClick={handleSaveSettings} className="w-full" data-testid="button-save-settings">
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Settings
+                </Button>
+              )}
+
+              <Accordion type="multiple" defaultValue={[]} className="w-full">
+            <AccordionItem value="audio-source">
+              <AccordionTrigger>
+                <Label htmlFor="audio-url-input" className="text-sm font-medium flex items-center gap-2">
+                  <Link className="w-4 h-4" />
+                  Audio URL
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <Label htmlFor="audio-url-input" className="text-sm font-medium flex items-center gap-2">
+                    <Link className="w-4 h-4" />
+                    Audio URL
+                  </Label>
               <Input
                 id="audio-url-input"
                 value={audioUrl}
@@ -703,14 +903,24 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                   </div>
                 </div>
               )}
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <ImageIcon className="w-4 h-4" />
-                Container Display
-              </Label>
-              <div className="flex items-center gap-3">
+            <AccordionItem value="container-display">
+              <AccordionTrigger>
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" />
+                  Container Display
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" />
+                    Container Display
+                  </Label>
+                  <div className="flex items-center gap-3">
                 <Button
                   size="sm"
                   variant={displayMode === "visualizer" ? "default" : "outline"}
@@ -742,34 +952,50 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                   />
                 </div>
               )}
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-3">
-              <Label htmlFor="title-input" className="text-sm font-medium">Title</Label>
-              <Input id="title-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter title" data-testid="input-title" />
-            </div>
+            <AccordionItem value="title-button">
+              <AccordionTrigger>
+                <Label className="text-sm font-medium">Title & Button</Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <div className="space-y-3">
+                    <Label htmlFor="title-input" className="text-sm font-medium">Title</Label>
+                    <Input id="title-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter title" data-testid="input-title" />
+                  </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="button-label-input" className="text-sm font-medium">Button Label</Label>
-              <Input id="button-label-input" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Enter button label" data-testid="input-button-label" />
-            </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="button-label-input" className="text-sm font-medium">Button Label</Label>
+                    <Input id="button-label-input" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Enter button label" data-testid="input-button-label" />
+                  </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="button-url-input" className="text-sm font-medium flex items-center gap-2">
-                <ExternalLink className="w-4 h-4" />
-                Button URL
-              </Label>
-              <Input
-                id="button-url-input"
-                value={buttonUrl}
-                onChange={(e) => setButtonUrl(e.target.value)}
-                placeholder="https://example.com"
-                data-testid="input-button-url"
-              />
-            </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="button-url-input" className="text-sm font-medium flex items-center gap-2">
+                      <ExternalLink className="w-4 h-4" />
+                      Button URL
+                    </Label>
+                    <Input
+                      id="button-url-input"
+                      value={buttonUrl}
+                      onChange={(e) => setButtonUrl(e.target.value)}
+                      placeholder="https://example.com"
+                      data-testid="input-button-url"
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-4 p-3 bg-muted rounded-md">
-              <Label className="text-sm font-medium">Launch-site button</Label>
+            <AccordionItem value="launch-site-button">
+              <AccordionTrigger>
+                <Label className="text-sm font-medium">Launch-site button</Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 p-3 bg-muted rounded-md pt-4">
+                  <Label className="text-sm font-medium">Launch-site button</Label>
               <ColorPickerField label="Color" color={buttonColor} onChange={setButtonColor} testId="color-launch-button" />
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -807,10 +1033,17 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                 </div>
                 <Slider value={[visitModalWidth]} onValueChange={(v) => setVisitModalWidth(v[0])} min={30} max={100} step={5} className="w-full" data-testid="slider-visit-modal-width" />
               </div>
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-4 p-3 bg-muted rounded-md">
-              <Label className="text-sm font-medium">QR Share section</Label>
+            <AccordionItem value="qr-share">
+              <AccordionTrigger>
+                <Label className="text-sm font-medium">QR Share section</Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 p-3 bg-muted rounded-md pt-4">
+                  <Label className="text-sm font-medium">QR Share section</Label>
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Visibility</Label>
                 <Switch checked={qrButtonVisible} onCheckedChange={setQrButtonVisible} data-testid="switch-qr-button-visible" />
@@ -823,10 +1056,17 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                 </div>
                 <Slider value={[qrButtonPosY]} onValueChange={(v) => setQrButtonPosY(v[0])} min={0} max={100} step={0.5} className="w-full" data-testid="slider-qr-button-y" />
               </div>
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-4 p-3 bg-muted rounded-md">
-              <Label className="text-sm font-medium">CTA section</Label>
+            <AccordionItem value="cta-section">
+              <AccordionTrigger>
+                <Label className="text-sm font-medium">CTA section</Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 p-3 bg-muted rounded-md pt-4">
+                  <Label className="text-sm font-medium">CTA section</Label>
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Use section as clickable button</Label>
                 <Switch checked={ctaAsButton} onCheckedChange={setCtaAsButton} data-testid="switch-cta-as-button" />
@@ -895,13 +1135,23 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                   </div>
                 </>
               )}
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <Maximize2 className="w-4 h-4" />
-                Shape
-              </Label>
+            <AccordionItem value="shape">
+              <AccordionTrigger>
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Maximize2 className="w-4 h-4" />
+                  Shape
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Maximize2 className="w-4 h-4" />
+                    Shape
+                  </Label>
               <div className="grid grid-cols-4 gap-2">
                 {(["circle", "oval", "square", "rectangle"] as ContainerShape[]).map((s) => (
                   <Button
@@ -920,10 +1170,17 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                 <Label className="text-xs">Rounded edges (media container)</Label>
                 <Switch checked={containerRounded} onCheckedChange={setContainerRounded} data-testid="switch-container-rounded" />
               </div>
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-4 p-3 bg-muted rounded-md">
-              <Label className="text-sm font-medium">Position & scale (entire view space)</Label>
+            <AccordionItem value="position-scale">
+              <AccordionTrigger>
+                <Label className="text-sm font-medium">Position & scale (entire view space)</Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 p-3 bg-muted rounded-md pt-4">
+                  <Label className="text-sm font-medium">Position & scale (entire view space)</Label>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs">Scale</Label>
@@ -1009,65 +1266,126 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
               </Label>
               <ColorPickerField label="Page Background" color={bgColor} onChange={setBgColor} testId="color-bg" />
               <ColorPickerField label="Border Color" color={borderColor} onChange={setBorderColor} testId="color-border" />
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="visibility-toggle" className="text-sm font-medium flex items-center gap-2">
-                {containerVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                Container Visible
-              </Label>
-              <Switch id="visibility-toggle" checked={containerVisible} onCheckedChange={setContainerVisible} data-testid="switch-visibility" />
-            </div>
+            <AccordionItem value="container-visibility">
+              <AccordionTrigger>
+                <Label htmlFor="visibility-toggle" className="text-sm font-medium flex items-center gap-2">
+                  {containerVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  Container Visible
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex items-center justify-between pt-2">
+                  <Label htmlFor="visibility-toggle" className="text-sm font-medium flex items-center gap-2">
+                    {containerVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    Container Visible
+                  </Label>
+                  <Switch id="visibility-toggle" checked={containerVisible} onCheckedChange={setContainerVisible} data-testid="switch-visibility" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
+            <AccordionItem value="progress">
+              <AccordionTrigger>
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <Clock className="w-4 h-4" />
                   Progress
                 </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Progress
+                    </Label>
                 <span className="text-sm text-muted-foreground">
                   {formatTime(currentTime)} / {formatTime(duration)}
                 </span>
               </div>
               <Slider value={progress} onValueChange={handleProgressChange} onValueCommit={handleProgressCommit} max={100} step={0.1} className="w-full" data-testid="slider-progress" />
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
+            <AccordionItem value="volume">
+              <AccordionTrigger>
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <Volume2 className="w-4 h-4" />
                   Volume
                 </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Volume2 className="w-4 h-4" />
+                      Volume
+                    </Label>
                 <span className="text-sm text-muted-foreground">{volume[0]}%</span>
               </div>
               <Slider value={volume} onValueChange={setVolume} max={100} step={1} className="w-full" data-testid="slider-volume" />
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="mute-toggle" className="text-sm font-medium flex items-center gap-2">
-                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                Muted
-              </Label>
-              <Switch id="mute-toggle" checked={isMuted} onCheckedChange={handleMuteToggle} data-testid="switch-mute" />
-            </div>
+            <AccordionItem value="muted">
+              <AccordionTrigger>
+                <Label htmlFor="mute-toggle" className="text-sm font-medium flex items-center gap-2">
+                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  Muted
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex items-center justify-between pt-2">
+                  <Label htmlFor="mute-toggle" className="text-sm font-medium flex items-center gap-2">
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    Muted
+                  </Label>
+                  <Switch id="mute-toggle" checked={isMuted} onCheckedChange={handleMuteToggle} data-testid="switch-mute" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                Transport
-              </Label>
-              <Button size="sm" variant="outline" onClick={handlePlayToggle} data-testid="button-transport">
-                {isPlaying ? (<><Pause className="w-4 h-4 mr-2" />Pause</>) : (<><Play className="w-4 h-4 mr-2" />Play</>)}
-              </Button>
-            </div>
+            <AccordionItem value="transport">
+              <AccordionTrigger>
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  Transport
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex items-center justify-between pt-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    Transport
+                  </Label>
+                  <Button size="sm" variant="outline" onClick={handlePlayToggle} data-testid="button-transport">
+                    {isPlaying ? (<><Pause className="w-4 h-4 mr-2" />Pause</>) : (<><Play className="w-4 h-4 mr-2" />Play</>)}
+                  </Button>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="loop-toggle" className="text-sm font-medium flex items-center gap-2">
-                <Repeat className="w-4 h-4" />
-                Loop
-              </Label>
-              <Switch id="loop-toggle" checked={isLooping} onCheckedChange={handleLoopToggle} data-testid="switch-loop" />
-            </div>
+            <AccordionItem value="loop">
+              <AccordionTrigger>
+                <Label htmlFor="loop-toggle" className="text-sm font-medium flex items-center gap-2">
+                  <Repeat className="w-4 h-4" />
+                  Loop
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2">
+                  <div className="flex items-center justify-between pb-4">
+                    <Label htmlFor="loop-toggle" className="text-sm font-medium flex items-center gap-2">
+                      <Repeat className="w-4 h-4" />
+                      Loop
+                    </Label>
+                    <Switch id="loop-toggle" checked={isLooping} onCheckedChange={handleLoopToggle} data-testid="switch-loop" />
+                  </div>
 
             {isLooping && (
               <div className="space-y-4 p-3 bg-muted rounded-md">
@@ -1127,11 +1445,23 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                 </div>
               </div>
             )}
-            <div className="border-t border-border pt-4 space-y-4">
-              <Label className="text-sm font-semibold flex items-center gap-2">
-                <ExternalLink className="w-4 h-4" />
-                iFrame Container 1
-              </Label>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="iframe1">
+              <AccordionTrigger>
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4" />
+                  iFrame Container 1
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="border-t border-border pt-4 space-y-4">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    iFrame Container 1
+                  </Label>
               <div className="space-y-3 p-3 bg-muted rounded-md">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium flex items-center gap-2">
@@ -1225,13 +1555,23 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                   </div>
                 </div>
               </div>
-            </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-            <div className="border-t border-border pt-4 space-y-4">
-              <Label className="text-sm font-semibold flex items-center gap-2">
-                <ExternalLink className="w-4 h-4" />
-                iFrame Container 2
-              </Label>
+            <AccordionItem value="iframe2">
+              <AccordionTrigger>
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4" />
+                  iFrame Container 2
+                </Label>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="border-t border-border pt-4 space-y-4">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    iFrame Container 2
+                  </Label>
               <div className="space-y-3 p-3 bg-muted rounded-md">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium flex items-center gap-2">
@@ -1325,16 +1665,13 @@ export default function PlayPage({ standalone }: { standalone?: boolean } = {}) 
                   </div>
                 </div>
               </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            </Accordion>
             </div>
-
-            <Button onClick={handleSaveSettings} className="w-full mt-4" data-testid="button-save-settings">
-              <Save className="w-4 h-4 mr-2" />
-              Save Settings
-            </Button>
-          </div>
           </DraggableResizablePanel>
-        </SheetContent>
-      </Sheet>
+        )}
         <div className="flex items-center gap-2 rounded-md bg-black/30 px-2 py-1.5 text-white shrink-0">
           <Label htmlFor="visibility-toggle-page" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
             {containerVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
