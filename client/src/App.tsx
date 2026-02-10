@@ -8,6 +8,7 @@ import Home from "@/pages/home";
 import PlayPage from "@/pages/play";
 import StemPage from "@/pages/stem";
 import SearchPage from "@/pages/search";
+import BannerPage from "@/pages/banner";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/play">{() => <PlayPage />}</Route>
       <Route path="/stem" component={StemPage} />
       <Route path="/search" component={SearchPage} />
+      <Route path="/banner" component={BannerPage} />
       <Route path="/">
         <Redirect to="/view/config" />
       </Route>
