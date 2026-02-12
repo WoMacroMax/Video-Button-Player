@@ -9,6 +9,7 @@ import PlayPage from "@/pages/play";
 import StemPage from "@/pages/stem";
 import SearchPage from "@/pages/search";
 import BannerPage from "@/pages/banner";
+import LiveBannerPage from "@/pages/livebanner";
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/stem" component={StemPage} />
       <Route path="/search" component={SearchPage} />
       <Route path="/banner" component={BannerPage} />
+      <Route path="/livebanner" component={LiveBannerPage} />
       <Route path="/">
         <Redirect to="/view/config" />
       </Route>

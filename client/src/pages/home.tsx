@@ -190,7 +190,7 @@ function ColorPickerField({ label, color, onChange, testId }: { label: string; c
   );
 }
 
-export default function Home({ standalone, embed, config }: { standalone?: boolean; embed?: boolean; config?: boolean } = {}) {
+export default function Home({ standalone, embed, config, embedFillContainer, embedNoBorder }: { standalone?: boolean; embed?: boolean; config?: boolean; embedFillContainer?: boolean; embedNoBorder?: boolean } = {}) {
   const [isHovered, setIsHovered] = useState(false);
   const [title, setTitle] = useState("Click the Video Button");
   const [buttonLabel, setButtonLabel] = useState("Visit Site");
@@ -301,6 +301,7 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
   const progressIntervalRef = useRef<number | null>(null);
   const isSeeking = useRef(false);
   const volumeRef = useRef(50);
+  const muteTogglingRef = useRef(false);
   const sourceModeRef = useRef<SourceMode>(sourceMode);
   useEffect(() => { sourceModeRef.current = sourceMode; }, [sourceMode]);
 
@@ -502,7 +503,11 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
               if (dur > 0) setDuration(dur);
               setIsPlaying(true);
             } else if (event.data === 2) {
-              setIsPlaying(false);
+              if (muteTogglingRef.current) {
+                event.target.playVideo();
+              } else {
+                setIsPlaying(false);
+              }
             }
             if (event.data === 0 && isLoopingRef.current) {
               event.target.seekTo(loopStartRef.current, true);
@@ -561,7 +566,13 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
       }
     };
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPause = () => {
+      if (muteTogglingRef.current) {
+        video.play().catch(() => {});
+      } else {
+        setIsPlaying(false);
+      }
+    };
     const onDurationChange = () => {
       if (isFinite(video.duration) && video.duration > 0) setDuration(video.duration);
     };
@@ -644,14 +655,21 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
     }
   }, [volume, playerReady, sourceMode]);
 
-  // Mute is independent of play: only toggle sound, never play/pause
+  // Mute is independent of play: only toggle sound, never play/pause. Playback must stay playing.
   useEffect(() => {
+    muteTogglingRef.current = true;
     if (sourceMode === "youtube" && playerReady && playerRef.current) {
-      if (isMuted) { if (typeof playerRef.current.mute === "function") playerRef.current.mute(); }
-      else { if (typeof playerRef.current.unMute === "function") playerRef.current.unMute(); if (typeof playerRef.current.setVolume === "function") playerRef.current.setVolume(volumeRef.current); }
+      if (isMuted) {
+        if (typeof playerRef.current.mute === "function") playerRef.current.mute();
+      } else {
+        if (typeof playerRef.current.unMute === "function") playerRef.current.unMute();
+        if (typeof playerRef.current.setVolume === "function") playerRef.current.setVolume(volumeRef.current);
+      }
     } else if (sourceMode === "mp4" && mp4VideoRef.current) {
       mp4VideoRef.current.muted = isMuted;
     }
+    const t = setTimeout(() => { muteTogglingRef.current = false; }, 200);
+    return () => clearTimeout(t);
   }, [isMuted, playerReady, sourceMode]);
 
   useEffect(() => {
@@ -789,8 +807,23 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
   const scaleFactor = scale[0] / 100;
 
   if (embed) {
+    const embedWrapperClass = embedFillContainer ? "relative w-full h-full min-h-0" : "relative w-full min-h-screen";
+    const embedInnerClass = embedFillContainer ? "relative w-full h-full min-h-0 flex items-stretch justify-stretch" : "relative w-full min-h-screen flex items-stretch justify-stretch";
+    const videoButtonClass = embedFillContainer
+      ? "absolute inset-0 cursor-pointer bg-transparent border-none p-0 transition-transform duration-300 w-full h-full"
+      : `absolute cursor-pointer bg-transparent border-none p-0 transition-transform duration-300 ${currentShape.widthClass} ${currentShape.heightClass}`;
+    const videoButtonStyle = embedFillContainer
+      ? { left: 0, top: 0, right: 0, bottom: 0, transform: isHovered ? "translateY(-4px)" : "translateY(0)", zIndex: mediaZIndex }
+      : {
+          left: 0,
+          top: 0,
+          transform: `scale(${(scaleFactor * containerWidth[0]) / 100}, ${(scaleFactor * containerHeight[0]) / 100}) ${isHovered ? "translateY(-4px)" : "translateY(0)"}`,
+          transformOrigin: "top left",
+          zIndex: mediaZIndex,
+        };
+    const noSpin = !!embedFillContainer;
     return (
-      <div className="relative w-full min-h-screen" style={{ backgroundColor: bgColor }}>
+      <div className={embedWrapperClass} style={{ backgroundColor: bgColor }}>
         {ctaAsButton && (
           <button
             type="button"
@@ -815,17 +848,11 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
             data-testid="cta-button"
           />
         )}
-        <div className="relative w-full min-h-screen flex items-stretch justify-stretch">
+        <div className={embedInnerClass}>
           <button
             type="button"
-            className={`absolute cursor-pointer bg-transparent border-none p-0 transition-transform duration-300 ${currentShape.widthClass} ${currentShape.heightClass}`}
-            style={{
-              left: 0,
-              top: 0,
-              transform: `scale(${(scaleFactor * containerWidth[0]) / 100}, ${(scaleFactor * containerHeight[0]) / 100}) ${isHovered ? "translateY(-4px)" : "translateY(0)"}`,
-              transformOrigin: "top left",
-              zIndex: mediaZIndex,
-            }}
+            className={videoButtonClass}
+            style={videoButtonStyle}
             onClick={handleClick}
             onKeyDown={handleKeyDown}
             onMouseEnter={() => setIsHovered(true)}
@@ -837,12 +864,12 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
               ref={containerRef}
               className="relative w-full h-full overflow-hidden transition-all duration-300"
               style={{
-                borderRadius: containerRounded ? currentShape.borderRadius : "0",
+                borderRadius: embedFillContainer ? "0" : (containerRounded ? currentShape.borderRadius : "0"),
                 boxShadow: isHovered
                   ? `0 20px 60px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3), inset 0 -2px 6px rgba(0,0,0,0.2)`
                   : `0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25), inset 0 -2px 6px rgba(0,0,0,0.15)`,
-                border: `4px solid ${borderColor}`,
-                animation: shape === "circle" && isPlaying ? "spin-record 4s linear infinite" : "none",
+                border: embedNoBorder ? "none" : `4px solid ${borderColor}`,
+                animation: !noSpin && shape === "circle" && isPlaying ? "spin-record 4s linear infinite" : "none",
               }}
             >
               <div
@@ -867,7 +894,7 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
               <div
                 className="absolute inset-0 z-20 pointer-events-none"
                 style={{
-                  animation: shape === "circle" && isPlaying ? "spin-record-reverse 4s linear infinite" : "none",
+                  animation: !noSpin && shape === "circle" && isPlaying ? "spin-record-reverse 4s linear infinite" : "none",
                 }}
               >
                 <div
@@ -877,7 +904,7 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); setIsMuted((m) => !m); }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); }}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); } }}
                     className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
                     aria-label={isMuted ? "Unmute video" : "Mute video"}
@@ -2007,7 +2034,7 @@ export default function Home({ standalone, embed, config }: { standalone?: boole
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); setIsMuted((m) => !m); }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); }}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setIsMuted((m) => !m); } }}
                   className="rounded-full bg-black/50 text-white/80 w-9 h-9 flex items-center justify-center cursor-pointer"
                   aria-label={isMuted ? "Unmute video" : "Mute video"}
